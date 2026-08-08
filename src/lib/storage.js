@@ -50,10 +50,11 @@ export async function uploadGambar(file, opts = {}) {
   });
   if (error) throw error;
 
-  // 2) upload langsung ke B2
+  // 2) upload langsung ke B2 (tanpa header Content-Type eksplisit —
+  //    aturan CORS B2 lewat dashboard UI cuma izinkan origin, tidak ada kontrol allowedHeaders,
+  //    jadi header tambahan bikin preflight ditolak 403)
   const put = await fetch(signed.url, {
     method: "PUT",
-    headers: { "Content-Type": "image/jpeg" },
     body: f
   });
   if (!put.ok) throw new Error("Upload gambar gagal (" + put.status + ")");

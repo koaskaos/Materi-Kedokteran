@@ -36,12 +36,12 @@ Deno.serve(async (req) => {
       region,
     });
 
-    const url = `${endpoint}/${bucket}/${key}`;
+    const expiresIn = m === "read" ? 3600 : 300;
+    const url = `${endpoint}/${bucket}/${key}?X-Amz-Expires=${expiresIn}`;
     const method = m === "read" ? "GET" : "PUT";
-    const headers = m === "read" ? {} : { "content-type": contentType || "image/jpeg" };
     const signed = await client.sign(
-      new Request(url, { method, headers }),
-      { aws: { signQuery: true }, expiresIn: m === "read" ? 3600 : 300 } as any
+      new Request(url, { method }),
+      { aws: { signQuery: true } }
     );
 
     return json({ url: signed.url }, 200);
