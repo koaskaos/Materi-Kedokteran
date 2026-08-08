@@ -1020,7 +1020,7 @@ function MobileShell() {
           <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}><ArrowLeft size={18} color="#fff" /> Kembali</button>
         ) : (
           <button onClick={() => setNav({ notebook: null, section: null, path: [], view: "materi" })} aria-label="Beranda" style={{ display: "flex", alignItems: "center", gap: 9, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: C.blue, fontWeight: 800, fontSize: 17 }}>M</div>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>
           </button>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1117,7 +1117,7 @@ function DesktopShell() {
         <aside style={{ width: 264, background: C.white, borderRight: `1px solid ${C.border}`, padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4, height: H, overflowY: "auto", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: C.blue, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>M</div>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: C.blue, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo-blue.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>
               <span style={{ fontWeight: 800, fontSize: 16, color: C.navy, letterSpacing: -.3 }}>Materi Belajar Kedokteran</span>
             </div>
             <button onClick={() => setSidebarOpen(false)} aria-label="Tutup menu" style={{ width: 28, height: 28, borderRadius: 8, background: C.bg, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><X size={16} color={C.sub} /></button>
@@ -1356,8 +1356,8 @@ function LandingAuth({ onLoggedIn, payment = PAYMENT }) {
       <div style={{ margin: "auto 0", width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", alignItems: "center" }}>
       {/* LOGO — ganti kotak ini dengan logo buatanmu */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 22 }}>
-        <div style={{ width: 72, height: 72, borderRadius: 20, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 10px 30px rgba(0,0,0,0.18)" }}>
-          <GraduationCap size={38} color="#118EEA" />
+        <div style={{ width: 72, height: 72, borderRadius: 20, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 10px 30px rgba(0,0,0,0.18)", overflow: "hidden" }}>
+          <img src="/logo.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
         <div style={{ color: "#fff", fontSize: 23, fontWeight: 800, letterSpacing: -.4, textAlign: "center" }}>Materi Belajar Kedokteran</div>
       </div>
