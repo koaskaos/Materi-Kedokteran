@@ -34,18 +34,19 @@ const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 /**
  * SATU-SATUNYA jalur upload gambar materi. Semua fitur pakai ini.
  * Alur: kompres -> minta presigned PUT URL ke Edge Function `b2-sign`
- *       (secret B2 aman di server) -> PUT langsung ke Backblaze B2 -> kembalikan URL publik.
+ *       (secret B2 aman di server) -> PUT langsung ke Backblaze B2 -> kembalikan KEY (bukan URL,
+ *       karena bucket privat — pemanggilan URL harus lewat gambarSignedUrl()).
  *
- * @returns {Promise<string>} URL publik gambar
+ * @returns {Promise<string>} key objek di bucket B2 (simpan ini di database)
  */
 export async function uploadGambar(file, opts = {}) {
   const { prefix = "", compress = true, highDetail = false } = opts;
   const f = compress ? await compressImage(file, { highDetail }) : file;
   const key = `${prefix}${rid()}.jpg`;
 
-  // 1) minta URL bertanda tangan (hanya user login yang bisa)
+  // 1) minta URL bertanda tangan untuk upload (hanya user login yang bisa)
   const { data: signed, error } = await supabase.functions.invoke("b2-sign", {
-    body: { key, contentType: "image/jpeg" }
+    body: { key, contentType: "image/jpeg", mode: "write" }
   });
   if (error) throw error;
 
@@ -57,8 +58,22 @@ export async function uploadGambar(file, opts = {}) {
   });
   if (!put.ok) throw new Error("Upload gambar gagal (" + put.status + ")");
 
-  // 3) URL publik (bucket B2 publik / lewat domain Cloudflare)
-  return `${import.meta.env.VITE_B2_PUBLIC_URL}/${key}`;
+  return key;
+}
+
+/**
+ * Ambil URL sementara (signed, 1 jam) untuk menampilkan gambar dari bucket B2 privat.
+ * Dipanggil setiap kali gambar akan ditampilkan (lihat komponen SignedImg di App.jsx).
+ * @param {string} key - key objek yang disimpan dari uploadGambar()
+ * @returns {Promise<string>} URL sementara yang bisa dipakai langsung di <img src>
+ */
+export async function gambarSignedUrl(key) {
+  if (!key) return "";
+  const { data, error } = await supabase.functions.invoke("b2-sign", {
+    body: { key, mode: "read" }
+  });
+  if (error) throw error;
+  return data.url;
 }
 
 /* ---------- BUKTI BAYAR: tetap di Supabase Storage (privat, kecil) ---------- */

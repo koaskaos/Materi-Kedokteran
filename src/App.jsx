@@ -308,7 +308,7 @@ function AirRow({ icon, cover, color, typeLabel, title, meta, onClick, tools }) 
   return (
     <div className="mk-card" style={{ border: `1px solid ${col.chip}`, borderRadius: 14, marginBottom: 10, background: col.tint, overflow: "hidden" }}>
       <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 13px", cursor: "pointer" }}>
-        {cover ? <img src={cover} alt="" style={{ width: 46, height: 46, borderRadius: 11, objectFit: "cover", flexShrink: 0 }} />
+        {cover ? <SignedImg src={cover} alt="" style={{ width: 46, height: 46, borderRadius: 11, objectFit: "cover", flexShrink: 0 }} />
           : <div style={{ width: 46, height: 46, borderRadius: 11, background: col.chip, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
@@ -328,7 +328,7 @@ function DeskRow({ icon, cover, color, typeLabel, title, meta, onClick, tools })
   return (
     <div className="mk-card" style={{ background: col.tint, border: `1px solid ${col.chip}`, borderRadius: 16, boxShadow: "0 2px 10px rgba(12,111,192,.05)", overflow: "hidden" }}>
       <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 15, padding: "15px 20px", cursor: "pointer" }}>
-        {cover ? <img src={cover} alt="" style={{ width: 56, height: 56, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
+        {cover ? <SignedImg src={cover} alt="" style={{ width: 56, height: 56, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
           : <div style={{ width: 56, height: 56, borderRadius: 13, background: col.chip, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 3 }}>
@@ -351,6 +351,29 @@ const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const sanitize = (h) => (h || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/ on\w+="[^"]*"/gi, "").replace(/javascript:/gi, "");
 const stripHtml = (h) => (h || "").replace(/<[^>]*>/g, "");
 
+/* ===== gambar B2 (bucket privat): resolve key -> signed URL, dengan cache ===== */
+const signedUrlCache = new Map(); // key -> { url, expires }
+function SignedImg({ src, alt, style, onError }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let alive = true;
+    if (!src) { setUrl(""); return; }
+    // src dari data lama bisa jadi URL absolut (http...) — tampilkan langsung, gak perlu sign.
+    if (/^https?:\/\//i.test(src)) { setUrl(src); return; }
+    const cached = signedUrlCache.get(src);
+    if (cached && cached.expires > Date.now()) { setUrl(cached.url); return; }
+    setUrl("");
+    storage.gambarSignedUrl(src).then((u) => {
+      if (!alive) return;
+      signedUrlCache.set(src, { url: u, expires: Date.now() + 50 * 60 * 1000 }); // cache 50 menit (signed 60 menit)
+      setUrl(u);
+    }).catch(() => { if (alive) setUrl(""); });
+    return () => { alive = false; };
+  }, [src]);
+  if (!url) return <div style={{ ...style, background: C.bg }} />;
+  return <img src={url} alt={alt || ""} style={style} onError={onError} />;
+}
+
 function Block({ b, i }) {
   if (b.type === "h") return <h2 data-h={i} style={{ fontSize: 14, fontWeight: 800, color: C.navy, margin: "20px 0 10px", scrollMarginTop: 20 }}>{b.text}</h2>;
   if (b.type === "p") {
@@ -359,7 +382,7 @@ function Block({ b, i }) {
   }
   if (b.type === "list") return <ul style={{ paddingLeft: 20, margin: "0 0 12px" }}>{b.items.filter(Boolean).map((it, k) => <li key={k} style={{ fontSize: 12.8, lineHeight: 1.72, color: C.body, marginBottom: 5 }}>{it}</li>)}</ul>;
   if (b.type === "highlight") return <div style={{ background: C.blueTint, borderRadius: 12, padding: "12px 15px", fontSize: 12, lineHeight: 1.6, color: C.navy, fontWeight: 500, margin: "0 0 15px" }}>{b.text}</div>;
-  if (b.type === "image") return b.src ? <div style={{ margin: "0 0 16px" }}><img src={b.src} alt={b.caption || ""} style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 4px 16px rgba(12,111,192,.1)" }} />{b.caption && <div style={{ marginTop: 8, fontSize: 12.5, color: C.sub }}>{b.caption}</div>}</div> : null;
+  if (b.type === "image") return b.src ? <div style={{ margin: "0 0 16px" }}><SignedImg src={b.src} alt={b.caption || ""} style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 4px 16px rgba(12,111,192,.1)" }} />{b.caption && <div style={{ marginTop: 8, fontSize: 12.5, color: C.sub }}>{b.caption}</div>}</div> : null;
   if (b.type === "video") return b.videoId ? (
     <div style={{ margin: "0 0 16px" }}>
       <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 14, overflow: "hidden", boxShadow: "0 6px 22px rgba(12,111,192,.12)" }}>
@@ -445,7 +468,7 @@ function EditBlock({ b, onUpdate }) {
   if (b.type === "list") return <AutoTextarea value={b.items.join("\n")} onChange={(e) => onUpdate({ items: e.target.value.split("\n") })} placeholder="Satu poin per baris" style={ta} />;
   if (b.type === "image") return (
     <div>
-      {b.src ? <img src={b.src} alt="" style={{ width: "100%", borderRadius: 10, display: "block", marginBottom: 8 }} /> : (
+      {b.src ? <SignedImg src={b.src} alt="" style={{ width: "100%", borderRadius: 10, display: "block", marginBottom: 8 }} /> : (
         <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 26, border: `1.5px dashed ${C.border}`, borderRadius: 10, cursor: "pointer", background: C.bg, marginBottom: 8 }}>
           <Upload size={22} color={C.blue} /><span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>Klik untuk unggah gambar</span>
           <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await storage.uploadGambar(f, { prefix: "materi/" }); onUpdate({ src: url }); } catch (err) { alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err)); } }} />
@@ -1247,7 +1270,7 @@ function AskModal({ modal, onClose }) {
               <>
                 <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 8, display: "block" }}>Sampul (opsional)</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-                  {ccover ? <img src={ccover} alt="" style={{ width: 54, height: 54, borderRadius: 10, objectFit: "cover" }} /> : <div style={{ width: 54, height: 54, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}><ImageIcon size={20} color={C.sub} /></div>}
+                  {ccover ? <SignedImg src={ccover} alt="" style={{ width: 54, height: 54, borderRadius: 10, objectFit: "cover" }} /> : <div style={{ width: 54, height: 54, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}><ImageIcon size={20} color={C.sub} /></div>}
                   <label style={{ padding: "9px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.white, color: C.navy, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{ccover ? "Ganti" : "Unggah"}<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await storage.uploadGambar(f, { prefix: "cover/" }); setCcover(url); } catch (err) { alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err)); } }} /></label>
                   {ccover && <button onClick={() => setCcover(null)} style={{ border: "none", background: "none", color: C.danger, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Hapus</button>}
                 </div>

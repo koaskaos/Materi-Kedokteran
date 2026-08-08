@@ -1,6 +1,7 @@
 // Supabase Edge Function: b2-sign
-// Membuat presigned PUT URL untuk Backblaze B2 (S3-compatible). Aman:
+// Membuat presigned URL untuk Backblaze B2 (S3-compatible). Aman:
 // secret B2 hanya ada di server (Supabase Secrets), tidak pernah ke browser.
+// mode "write" -> presigned PUT (upload). mode "read" -> presigned GET (tampilkan, bucket privat).
 //
 // Deploy:  supabase functions deploy b2-sign
 // Set secrets (sekali):
@@ -13,15 +14,16 @@ import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { key, contentType } = await req.json();
+    const { key, contentType, mode } = await req.json();
     if (!key) return json({ error: "key wajib" }, 400);
+    const m = mode === "read" ? "read" : "write";
 
     const bucket = Deno.env.get("B2_BUCKET")!;
     const endpoint = Deno.env.get("B2_ENDPOINT")!;   // https://s3.<region>.backblazeb2.com
@@ -35,9 +37,11 @@ Deno.serve(async (req) => {
     });
 
     const url = `${endpoint}/${bucket}/${key}`;
+    const method = m === "read" ? "GET" : "PUT";
+    const headers = m === "read" ? {} : { "content-type": contentType || "image/jpeg" };
     const signed = await client.sign(
-      new Request(url, { method: "PUT", headers: { "content-type": contentType || "image/jpeg" } }),
-      { aws: { signQuery: true }, expiresIn: 300 } as any
+      new Request(url, { method, headers }),
+      { aws: { signQuery: true }, expiresIn: m === "read" ? 3600 : 300 } as any
     );
 
     return json({ url: signed.url }, 200);
