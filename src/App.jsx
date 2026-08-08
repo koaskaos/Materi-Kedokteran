@@ -83,7 +83,7 @@ let THEME = "light";
 const C = new Proxy({}, { get: (_, k) => PALETTES[THEME][k] });
 const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-const CARD_COLORS = {
+const CARD_COLORS_LIGHT = {
   blue:   { tint: "#EAF4FE", chip: "#D6EAFB", solid: "#2F80D8" },
   sky:    { tint: "#E9F5FB", chip: "#D3EBF5", solid: "#3AA0C9" },
   cyan:   { tint: "#E7F6F8", chip: "#D0ECEF", solid: "#2A9AA9" },
@@ -100,7 +100,27 @@ const CARD_COLORS = {
   indigo: { tint: "#EEEFFB", chip: "#DFE1F6", solid: "#5A63C4" },
   slate:  { tint: "#EEF1F5", chip: "#DEE4EC", solid: "#5B7089" }
 };
-const getColor = (key) => (key && CARD_COLORS[key]) ? CARD_COLORS[key] : { tint: C.white, chip: C.blueTint, solid: C.blue };
+const CARD_COLORS_DARK = {
+  blue:   { tint: "#132A3E", chip: "#1B3A54", solid: "#6FB4F0" },
+  sky:    { tint: "#122A33", chip: "#1A3A45", solid: "#7CC3E0" },
+  cyan:   { tint: "#0F2B2E", chip: "#173B3F", solid: "#5FC2CC" },
+  teal:   { tint: "#0F2A24", chip: "#173A32", solid: "#5AC7A8" },
+  mint:   { tint: "#102A1E", chip: "#183A2A", solid: "#66C68C" },
+  green:  { tint: "#152A11", chip: "#1E3A1A", solid: "#83C46E" },
+  lime:   { tint: "#1E2812", chip: "#2B381A", solid: "#A3C258" },
+  amber:  { tint: "#2E2510", chip: "#3E3318", solid: "#D9AE5C" },
+  orange: { tint: "#2E2010", chip: "#3E2C18", solid: "#E0A363" },
+  coral:  { tint: "#2E1913", chip: "#3E241C", solid: "#E08D74" },
+  rose:   { tint: "#2A151C", chip: "#3A1F28", solid: "#DE85A5" },
+  plum:   { tint: "#26151F", chip: "#361F2C", solid: "#BC7FA8" },
+  violet: { tint: "#201A33", chip: "#2C2447", solid: "#A386E0" },
+  indigo: { tint: "#1A1B33", chip: "#242647", solid: "#8890E0" },
+  slate:  { tint: "#1C222B", chip: "#28313C", solid: "#8CA0B4" }
+};
+const getColor = (key) => {
+  const table = THEME === "dark" ? CARD_COLORS_DARK : CARD_COLORS_LIGHT;
+  return (key && table[key]) ? table[key] : { tint: C.white, chip: C.blueTint, solid: C.blue };
+};
 
 const Ctx = createContext(null);
 const useApp = () => useContext(Ctx);
@@ -750,8 +770,9 @@ function AddMemberForm({ onClose }) {
   const [err, setErr] = useState("");
   const inp = { width: "100%", padding: "10px 12px", fontSize: 14, borderRadius: 10, border: `1px solid ${C.border}`, outline: "none", boxSizing: "border-box", color: C.ink, background: C.bg, fontFamily: FONT };
   const lab = { fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 5, display: "block" };
-  const valid = f.name.trim() && f.email.trim() && f.password.trim();
+  const valid = f.name.trim() && f.email.trim() && f.password.length >= 6;
   const submit = async () => {
+    if (f.password.length < 6) { setErr("Kata sandi minimal 6 karakter."); return; }
     setBusy(true); setErr("");
     try { await addMember({ name: f.name.trim(), email: f.email.trim(), password: f.password }); onClose(); }
     catch (e) { setErr(e?.message || "Gagal menambah anggota"); }
@@ -763,7 +784,7 @@ function AddMemberForm({ onClose }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ gridColumn: "1 / -1" }}><label style={lab}>Nama lengkap</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} style={inp} /></div>
         <div><label style={lab}>Email</label><input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} style={inp} /></div>
-        <div><label style={lab}>Password</label><input value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} style={inp} /></div>
+        <div><label style={lab}>Password <span style={{ fontWeight: 500, color: C.sub }}>(min. 6 karakter)</span></label><input type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} style={inp} /></div>
       </div>
       {err && <div style={{ color: C.danger, fontSize: 12.5, marginTop: 10 }}>{err}</div>}
       <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
@@ -1217,7 +1238,7 @@ function AskModal({ modal, onClose }) {
             <input autoFocus value={cname} onChange={(e) => setCname(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && cname.trim()) { modal.resolve({ name: cname.trim(), color: ccolor, cover: ccover }); onClose(); } }} placeholder={modal.placeholder || "Tulis nama"} style={{ width: "100%", padding: "11px 13px", fontSize: 14, borderRadius: 11, border: `1px solid ${C.border}`, outline: "none", boxSizing: "border-box", color: C.ink, background: C.bg, fontFamily: FONT, marginBottom: 16 }} />
             <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 8, display: "block" }}>Warna kartu</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 7, marginBottom: 16 }}>
-              {[["default", { tint: C.white, chip: C.border, solid: C.blue }], ...Object.entries(CARD_COLORS)].map(([key, col]) => {
+              {[["default", { tint: C.white, chip: C.border, solid: C.blue }], ...Object.keys(CARD_COLORS_LIGHT).map(k => [k, getColor(k)])].map(([key, col]) => {
                 const active = (key === "default" && !ccolor) || key === ccolor;
                 return <button key={key} onClick={() => setCcolor(key === "default" ? null : key)} aria-label={key} style={{ aspectRatio: "1", borderRadius: 8, border: active ? `2px solid ${C.blue}` : `2px solid ${col.chip}`, background: col.tint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 12, height: 12, borderRadius: "50%", background: col.solid }} /></button>;
               })}
@@ -1236,7 +1257,7 @@ function AskModal({ modal, onClose }) {
         )}
         {isColor && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 8 }}>
-            {[["default", { tint: C.white, chip: C.border, solid: C.blue }], ...Object.entries(CARD_COLORS)].map(([key, col]) => (
+            {[["default", { tint: C.white, chip: C.border, solid: C.blue }], ...Object.keys(CARD_COLORS_LIGHT).map(k => [k, getColor(k)])].map(([key, col]) => (
               <button key={key} onClick={() => { modal.resolve(key === "default" ? null : key); onClose(); }} aria-label={key} style={{ aspectRatio: "1", borderRadius: 12, border: `2px solid ${col.chip}`, background: col.tint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 18, height: 18, borderRadius: "50%", background: col.solid }} /></button>
             ))}
           </div>
@@ -1295,11 +1316,23 @@ function LandingAuth({ onLoggedIn, payment = PAYMENT }) {
   const doLogin = async () => {
     if (!email || !pw) { setErr("Isi email dan kata sandi."); return; }
     setLoading(true); setErr("");
-    try { await db.login(email.trim(), pw); onLoggedIn(); }
-    catch (e) { setErr(pesanError(e)); setLoading(false); }
+    try {
+      await db.login(email.trim(), pw);
+      const prof = await db.currentProfile();
+      const isAdminAccount = prof?.role === "admin";
+      console.log("[DEBUG doLogin]", { tab, profRole: prof?.role, isAdminAccount, mismatch: (tab === "admin") !== isAdminAccount });
+      if ((tab === "admin") !== isAdminAccount) {
+        await db.logout().catch(() => {});
+        setErr("Email atau kata sandi salah.");
+        setLoading(false);
+        return;
+      }
+      onLoggedIn();
+    } catch (e) { setErr(pesanError(e)); setLoading(false); }
   };
   const doDaftar = async () => {
     if (!name || !email || !pw) { setErr("Nama, email, dan kata sandi wajib diisi."); return; }
+    if (pw.length < 6) { setErr("Kata sandi minimal 6 karakter."); return; }
     setLoading(true); setErr("");
     try {
       await db.daftarPelajar({ name: name.trim(), email: email.trim(), password: pw, buktiFile: proofFile, amount: payment.jumlah });
@@ -1340,7 +1373,7 @@ function LandingAuth({ onLoggedIn, payment = PAYMENT }) {
         {tab === "admin" && (
           <div>
             {errBox}
-            <AuthField label="Email" icon={<Mail />} type="email" placeholder="admin@materikedokteran.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <AuthField label="Email" icon={<Mail />} type="email" placeholder="Masukkan email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <AuthField label="Kata sandi" icon={<Lock />} type="password" placeholder="Masukkan kata sandi" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && doLogin()} />
             <button onClick={doLogin} disabled={loading} style={btn}>{loading ? "Memproses…" : "Masuk"}</button>
             <div style={{ fontSize: 12, color: "#66708A", textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>Akun admin dibuat oleh pengelola. Tidak ada pendaftaran admin.</div>
@@ -1511,7 +1544,12 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { bootstrap(); }, [bootstrap]);
+  useEffect(() => {
+    const { data: sub } = db.onAuthChange((_session, event) => {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT") bootstrap();
+    });
+    return () => sub?.subscription?.unsubscribe();
+  }, [bootstrap]);
 
   // ---- Autosave konten (admin) ----
   useEffect(() => {

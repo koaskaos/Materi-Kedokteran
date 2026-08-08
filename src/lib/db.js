@@ -40,15 +40,22 @@ export async function lupaPassword(email) {
 export async function currentProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  let { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (error) throw error;
+  if (!data) {
+    // Kemungkinan race condition: row baru saja dibuat trigger, atau RLS belum siap. Retry sekali.
+    await new Promise((r) => setTimeout(r, 400));
+    const retry = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if (retry.error) throw retry.error;
+    data = retry.data;
+  }
   if (!data) return { id: user.id, email: user.email, role: "pelajar", verified: false, orphan: true };
   return { ...data, email: data.email || user.email };
 }
 
 // Pantau perubahan sesi (login/logout) — dipakai di App useEffect.
 export function onAuthChange(cb) {
-  return supabase.auth.onAuthStateChange((_e, session) => cb(session));
+  return supabase.auth.onAuthStateChange((event, session) => cb(session, event));
 }
 
 /* =================== CONTENT (pohon materi/kuis) =================== */
