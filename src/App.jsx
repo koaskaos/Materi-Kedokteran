@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, createContext, useCont
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
 import { useTiptapEditor, TiptapContent, tiptapExtensions } from "./lib/editor";
-import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon } from "lucide-react";
+import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink } from "lucide-react";
 
 /* ===== label istilah ===== */
 const L = { book: "Buku", section: "Bagian", page: "Halaman" };
@@ -242,6 +242,44 @@ function useMutations(data, setData, ask) {
         return { ...d, [nb]: { ...notebook, sections } };
       });
     },
+    addTugasSmart: async (nav) => {
+      const r = await ask.create("Tugas baru", { withCover: false, placeholder: "Judul tugas" });
+      if (!r || !r.name) return;
+      const name = r.name;
+      const nb = nav.notebook || Object.keys(data)[0];
+      if (!nb) return;
+      const key = slug(name);
+      setData((d) => {
+        const notebook = d[nb];
+        let sections = { ...notebook.sections };
+        let sk = nav.section || Object.keys(sections)[0];
+        if (!sk) { sk = slug("bab"); sections[sk] = { title: `${L.section} 1`, code: "B1", pages: {} }; }
+        const parentPath = nav.section ? nav.path : [];
+        const newNode = { kind: "tugas", title: name, color: r.color, link: "", children: {} };
+        const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
+        sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        return { ...d, [nb]: { ...notebook, sections } };
+      });
+    },
+    addReferensiSmart: async (nav) => {
+      const r = await ask.create("Buku kedokteran baru", { withCover: false, placeholder: "Judul buku" });
+      if (!r || !r.name) return;
+      const name = r.name;
+      const nb = nav.notebook || Object.keys(data)[0];
+      if (!nb) return;
+      const key = slug(name);
+      setData((d) => {
+        const notebook = d[nb];
+        let sections = { ...notebook.sections };
+        let sk = nav.section || Object.keys(sections)[0];
+        if (!sk) { sk = slug("bab"); sections[sk] = { title: `${L.section} 1`, code: "B1", pages: {} }; }
+        const parentPath = nav.section ? nav.path : [];
+        const newNode = { kind: "referensi", title: name, color: r.color, link: "", children: {} };
+        const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
+        sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        return { ...d, [nb]: { ...notebook, sections } };
+      });
+    },
     renamePage: async (nb, sk, fullPath) => {
       const cur = (() => { let c = data[nb].sections[sk].pages, n = null; for (const k of fullPath) { n = c[k]; c = n.children || {}; } return n; })();
       const name = await ask.prompt(`Ubah nama ${L.page}`, cur.title);
@@ -276,12 +314,16 @@ function useAddFlow() {
       { v: "notebook", label: L.book, desc: "Bidang studi baru", icon: <BookOpen size={17} color={C.blue} /> },
       { v: "section", label: L.section, desc: `Kelompok ${L.page.toLowerCase()} dalam ${L.book.toLowerCase()}`, icon: <Layers size={17} color={C.blue} /> },
       { v: "page", label: L.page, desc: "Isi materi: teks, gambar, video", icon: <FileText size={17} color={C.blue} /> },
-      { v: "quiz", label: "Kuis", desc: "Soal pilihan ganda + pembahasan", icon: <ListChecks size={17} color={C.blue} /> }
+      { v: "quiz", label: "Kuis", desc: "Soal pilihan ganda + pembahasan", icon: <ListChecks size={17} color={C.blue} /> },
+      { v: "tugas", label: "Tugas", desc: "Judul + link penyimpanan online (Drive, dll)", icon: <FileUp size={17} color={C.blue} /> },
+      { v: "referensi", label: "Buku kedokteran", desc: "Judul + link download (Word/PPT/PDF)", icon: <Library size={17} color={C.blue} /> }
     ]);
     if (kind === "page") mut.addPageSmart(nav);
     else if (kind === "section") mut.addSectionSmart(nav);
     else if (kind === "notebook") mut.addNotebook();
     else if (kind === "quiz") mut.addQuizSmart(nav);
+    else if (kind === "tugas") mut.addTugasSmart(nav);
+    else if (kind === "referensi") mut.addReferensiSmart(nav);
   };
 }
 
@@ -496,21 +538,21 @@ function TbBtn({ onClick, active, disabled, title, children }) {
     </button>
   );
 }
-function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading }) {
+function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compact }) {
   if (!editor) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
   const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
   const inTable = editor.isActive("table");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: "sticky", top: 0, zIndex: 2 }}>
-      <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
+      {!compact && <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
         onChange={(e) => { const v = e.target.value; if (v === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(v[1]) }).run(); }}
         style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
         <option value="p">Normal</option>
         <option value="h1">Judul 1</option>
         <option value="h2">Judul 2</option>
         <option value="h3">Judul 3</option>
-      </select>
+      </select>}
       <select value={currentSize} onChange={(e) => editor.chain().focus().setFontSize(e.target.value + "px").run()}
         style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
         {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -696,11 +738,17 @@ function PageRows({ container, basePath, Row }) {
       {Object.entries(container).map(([key, p]) => {
         const full = [...basePath, key];
         const isQuiz = p.kind === "quiz";
+        const isTugas = p.kind === "tugas";
+        const isReferensi = p.kind === "referensi";
+        const isLinkKind = isTugas || isReferensi;
         const n = childCount(p);
+        const icon = isQuiz ? <ListChecks size={18} /> : isTugas ? <FileUp size={18} /> : isReferensi ? <Library size={18} /> : <FileText size={18} />;
+        const typeLabel = isQuiz ? "Kuis" : isTugas ? "Tugas" : isReferensi ? "Buku kedokteran" : L.page;
+        const meta = isQuiz ? `${(p.questions || []).length} soal` : isLinkKind ? (p.link ? "Ada link" : "Belum ada link") : (n ? `${n} ${L.page.toLowerCase()}` : "");
         return (
-          <Row key={key} icon={isQuiz ? <ListChecks size={18} /> : <FileText size={18} />} cover={p.cover} color={p.color}
-            typeLabel={isQuiz ? "Kuis" : L.page} title={p.title} meta={isQuiz ? `${(p.questions || []).length} soal` : (n ? `${n} ${L.page.toLowerCase()}` : "")}
-            tools={role === "pengajar" ? <RowTools onRename={() => mut.renamePage(nav.notebook, nav.section, full)} onDelete={() => mut.deletePage(nav.notebook, nav.section, full, p.title)} onCover={isQuiz ? null : ((s) => mut.setPageCover(nav.notebook, nav.section, full, s))} onColor={async () => { const c = await ask.color("Pilih warna kartu"); if (c) mut.setPageColor(nav.notebook, nav.section, full, c); }} /> : null}
+          <Row key={key} icon={icon} cover={p.cover} color={p.color}
+            typeLabel={typeLabel} title={p.title} meta={meta}
+            tools={role === "pengajar" ? <RowTools onRename={() => mut.renamePage(nav.notebook, nav.section, full)} onDelete={() => mut.deletePage(nav.notebook, nav.section, full, p.title)} onCover={(isQuiz || isLinkKind) ? null : ((s) => mut.setPageCover(nav.notebook, nav.section, full, s))} onColor={async () => { const c = await ask.color("Pilih warna kartu"); if (c) mut.setPageColor(nav.notebook, nav.section, full, c); }} /> : null}
             onClick={() => setNav({ ...nav, path: full })} />
         );
       })}
@@ -709,6 +757,51 @@ function PageRows({ container, basePath, Row }) {
 }
 
 /* ===== KUIS ===== */
+/* ===== mini rich text editor reusable (dipakai di kuis: pertanyaan & pembahasan) ===== */
+function MiniRichEditor({ html, onSave, placeholder, minHeight = 70 }) {
+  const [ready, setReady] = useState(false);
+  const resolvedRef = useRef("");
+  useEffect(() => {
+    let alive = true;
+    resolveKeyedImages(html || "").then((h) => { if (alive) { resolvedRef.current = h; setReady(true); } });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (!ready) return <div style={{ minHeight, border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg }} />;
+  return <MiniRichEditorReady initialHtml={resolvedRef.current} onSave={onSave} placeholder={placeholder} minHeight={minHeight} />;
+}
+function MiniRichEditorReady({ initialHtml, onSave, placeholder, minHeight }) {
+  const [uploading, setUploading] = useState(false);
+  const editor = useTiptapEditor({
+    extensions: tiptapExtensions(placeholder),
+    content: initialHtml,
+    editorProps: { attributes: { class: "mk-article mk-edit", style: `font-family:${FONT}` } },
+    onBlur: ({ editor: ed }) => onSave(htmlToStoredKeys(ed.getHTML()))
+  });
+  const insertImage = async (file) => {
+    setUploading(true);
+    try {
+      const key = await storage.uploadGambar(file, { prefix: "materi/" });
+      const url = await storage.gambarSignedUrl(key);
+      signedUrlCache.set(key, { url, expires: Date.now() + 50 * 60 * 1000 });
+      editor.chain().focus().insertContent({ type: "imageFigure", attrs: { src: url, "data-key": key } }).run();
+      onSave(htmlToStoredKeys(editor.getHTML()));
+    } catch (err) {
+      alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err));
+    } finally { setUploading(false); }
+  };
+  const insertTable = () => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); onSave(htmlToStoredKeys(editor.getHTML())); };
+  if (!editor) return null;
+  return (
+    <div>
+      <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} compact />
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "10px 12px", minHeight, background: C.white }}>
+        <TiptapContent editor={editor} />
+      </div>
+    </div>
+  );
+}
+
 function QuizRunner({ node }) {
   const qs = node.questions || [];
   const [ans, setAns] = useState({});
@@ -720,8 +813,8 @@ function QuizRunner({ node }) {
         const picked = ans[i];
         return (
           <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 16, padding: "18px 18px", marginBottom: 14, background: C.white }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 14 }}>{i + 1}. {q.q}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            <QuizRichView html={q.q} prefix={`${i + 1}. `} bold />
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 10 }}>
               {q.options.map((opt, oi) => {
                 const isPicked = picked === oi, isCorrect = q.answer === oi;
                 let bg = C.white, bd = C.border, col = C.ink, mark = null;
@@ -739,7 +832,7 @@ function QuizRunner({ node }) {
             {checked && picked !== q.answer && (
               <div style={{ marginTop: 12, background: C.blueTint, borderRadius: 11, padding: "11px 14px" }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: C.navy, marginBottom: q.reason ? 4 : 0 }}>Jawaban benar: {q.options[q.answer]}</div>
-                {q.reason && <div style={{ fontSize: 13, lineHeight: 1.6, color: C.body }}>{q.reason}</div>}
+                {q.reason && <QuizRichView html={q.reason} />}
               </div>
             )}
           </div>
@@ -756,6 +849,19 @@ function QuizRunner({ node }) {
     </div>
   );
 }
+// render html kuis (pertanyaan/pembahasan) read-only, resolve gambar B2
+function QuizRichView({ html, prefix, bold }) {
+  const ref = useRef(null);
+  const [resolved, setResolved] = useState(html || "");
+  useEffect(() => { let alive = true; resolveKeyedImages(html || "").then((h) => alive && setResolved(h)); return () => { alive = false; }; }, [html]);
+  return (
+    <div ref={ref} className="mk-article" style={bold ? { fontSize: 15, fontWeight: 700, color: C.ink } : undefined}>
+      {prefix && <span>{prefix}</span>}
+      <span dangerouslySetInnerHTML={{ __html: sanitize(resolved) }} />
+      <KeyedImages containerRef={ref} />
+    </div>
+  );
+}
 
 function QuizEditor({ node }) {
   const { nav, mut } = useApp();
@@ -763,7 +869,7 @@ function QuizEditor({ node }) {
   const qs = node.questions || [];
   const set = (patch) => mut.setPageContent(nav.notebook, nav.section, nav.path, patch);
   const setQ = (i, patch) => set({ questions: qs.map((q, idx) => idx === i ? { ...q, ...patch } : q) });
-  const addQ = () => set({ questions: [...qs, { q: "Pertanyaan baru?", options: ["Pilihan A", "Pilihan B"], answer: 0, reason: "" }] });
+  const addQ = () => set({ questions: [...qs, { q: "<p>Pertanyaan baru?</p>", options: ["Pilihan A", "Pilihan B"], answer: 0, reason: "" }] });
   const delQ = (i) => set({ questions: qs.filter((_, idx) => idx !== i) });
   const ta = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 11px", fontSize: 14, color: C.ink, fontFamily: FONT, outline: "none", boxSizing: "border-box", background: C.bg };
   return (
@@ -776,7 +882,10 @@ function QuizEditor({ node }) {
             <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub }}>Soal {i + 1}</span>
             <button onClick={() => delQ(i)} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={13} color={C.danger} /></button>
           </div>
-          <input value={q.q} onChange={(e) => setQ(i, { q: e.target.value })} placeholder="Pertanyaan" style={{ ...ta, fontWeight: 600, marginBottom: 10 }} />
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, marginBottom: 6 }}>Pertanyaan <span style={{ fontWeight: 500, textTransform: "none" }}>(bisa gambar, tabel, video, format teks)</span></div>
+          <div style={{ marginBottom: 12 }}>
+            <MiniRichEditor key={`q-${i}`} html={q.q} onSave={(html) => setQ(i, { q: html })} placeholder="Tulis pertanyaan..." minHeight={60} />
+          </div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, marginBottom: 6 }}>Pilihan (klik bulatan = jawaban benar)</div>
           {q.options.map((opt, oi) => (
             <div key={oi} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
@@ -786,8 +895,8 @@ function QuizEditor({ node }) {
             </div>
           ))}
           <button onClick={() => setQ(i, { options: [...q.options, "Pilihan baru"] })} style={{ fontSize: 12.5, color: C.blue, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 10 }}>+ Tambah pilihan</button>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, margin: "4px 0 6px" }}>Alasan / pembahasan <span style={{ fontWeight: 500, textTransform: "none" }}>(opsional)</span></div>
-          <textarea value={q.reason} onChange={(e) => setQ(i, { reason: e.target.value })} rows={2} placeholder="Kenapa jawaban ini benar" style={{ ...ta, resize: "vertical" }} />
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, margin: "4px 0 6px" }}>Alasan / pembahasan <span style={{ fontWeight: 500, textTransform: "none" }}>(opsional, bisa gambar/tabel/video)</span></div>
+          <MiniRichEditor key={`r-${i}`} html={q.reason} onSave={(html) => setQ(i, { reason: html })} placeholder="Kenapa jawaban ini benar..." minHeight={50} />
         </div>
       ))}
       <button onClick={addQ} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 11, border: `1px dashed ${C.border}`, background: C.white, color: C.navy, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 16 }}><Plus size={16} color={C.blue} /> Tambah soal</button>
@@ -796,29 +905,81 @@ function QuizEditor({ node }) {
   );
 }
 
-/* tombol tambah kuis di dalam halaman (pengajar) */
-function AddInside() {
+/* ===== Tugas & Buku Kedokteran: judul + link ke penyimpanan online (Drive dll), struktur identik ===== */
+const LINK_KIND_LABEL = { tugas: "Tugas", referensi: "Buku kedokteran" };
+function LinkResourceEditor({ node }) {
   const { nav, mut } = useApp();
+  const [saved, setSaved] = useState(false);
+  const set = (patch) => mut.setPageContent(nav.notebook, nav.section, nav.path, patch);
+  const label = LINK_KIND_LABEL[node.kind] || "Tautan";
+  const inp = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, padding: "10px 12px", fontSize: 14, color: C.ink, fontFamily: FONT, outline: "none", boxSizing: "border-box", background: C.bg };
+  const linkOk = /^https?:\/\//i.test(node.link || "");
   return (
-    <div style={{ marginBottom: 14 }}>
-      <button onClick={() => mut.addQuizSmart(nav)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 15px", borderRadius: 11, border: `1px dashed ${C.blue}`, background: C.blueTint, color: C.navy, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}><Plus size={15} color={C.blue} /> Tambah kuis</button>
+    <div style={{ maxWidth: 560 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, marginBottom: 14 }}><Edit3 size={13} /> Mode edit {label.toLowerCase()}</div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 6, display: "block" }}>Judul {label.toLowerCase()}</label>
+        <input value={node.title} onChange={(e) => set({ title: e.target.value })} placeholder={`Contoh: ${node.kind === "referensi" ? "Konsensus Epilepsi" : "Makalah kasus stroke"}`} style={{ ...inp, fontWeight: 700, fontSize: 16 }} />
+      </div>
+      <div style={{ marginBottom: 6 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 6, display: "block" }}>Link penyimpanan online (Google Drive, dll)</label>
+        <input value={node.link || ""} onChange={(e) => set({ link: e.target.value.trim() })} placeholder="https://drive.google.com/..." style={inp} />
+        {node.link && !linkOk && <div style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>Link harus diawali http:// atau https://</div>}
+      </div>
+      <div style={{ fontSize: 12, color: C.sub, marginBottom: 18, lineHeight: 1.6 }}>Unggah file {node.kind === "referensi" ? "buku (Word/PPT/PDF)" : "tugas (Word/PDF/PPT)"} ke Google Drive atau penyimpanan online lain, atur akses "Siapa saja yang punya link", lalu tempel linknya di sini.</div>
+      <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1600); }} style={{ padding: "12px 24px", borderRadius: 12, border: "none", background: saved ? "#16A34A" : C.blue, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 8 }}>{saved ? <><Check size={16} /> Tersimpan</> : <><Save size={16} /> Simpan</>}</button>
     </div>
   );
 }
+function LinkResourceViewer({ node }) {
+  const label = LINK_KIND_LABEL[node.kind] || "Tautan";
+  const linkOk = /^https?:\/\//i.test(node.link || "");
+  return (
+    <div style={{ maxWidth: 560, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, background: C.white }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.blue, marginBottom: 10 }}>
+        {node.kind === "referensi" ? <Library size={14} /> : <FileUp size={14} />} {label}
+      </div>
+      <div style={{ fontSize: 19, fontWeight: 800, color: C.navy, marginBottom: 16 }}>{node.title}</div>
+      {linkOk ? (
+        <a href={node.link} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 20px", borderRadius: 11, background: C.blue, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", fontFamily: FONT }}>
+          Buka & unduh <ExternalLink size={15} />
+        </a>
+      ) : (
+        <div style={{ fontSize: 13, color: C.sub, fontStyle: "italic" }}>Link belum tersedia.</div>
+      )}
+    </div>
+  );
+}
+
+/* tombol tambah kuis/tugas/referensi di dalam halaman (pengajar) */
+function AddInside() {
+  const { nav, mut } = useApp();
+  const btn = { display: "flex", alignItems: "center", gap: 7, padding: "9px 15px", borderRadius: 11, border: `1px dashed ${C.blue}`, background: C.blueTint, color: C.navy, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT };
+  return (
+    <div style={{ marginBottom: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <button onClick={() => mut.addQuizSmart(nav)} style={btn}><Plus size={15} color={C.blue} /> Tambah kuis</button>
+      <button onClick={() => mut.addTugasSmart(nav)} style={btn}><FileUp size={15} color={C.blue} /> Tambah tugas</button>
+      <button onClick={() => mut.addReferensiSmart(nav)} style={btn}><Library size={15} color={C.blue} /> Tambah buku kedokteran</button>
+    </div>
+  );
+}
+
 
 /* tampilan sebuah sub bab: konten + daftar anak */
 function PageView({ node, container, Row }) {
   const { role, nav } = useApp();
   const isQuiz = node.kind === "quiz";
+  const isLinkKind = node.kind === "tugas" || node.kind === "referensi";
   const hasChildren = Object.keys(container).length > 0;
   if (isQuiz) return role === "pengajar" ? <QuizEditor node={node} /> : <QuizRunner node={node} />;
+  if (isLinkKind) return role === "pengajar" ? <LinkResourceEditor node={node} /> : <LinkResourceViewer node={node} />;
   return (
     <div>
       {role === "pengajar" ? <PageContentEditor node={node} />
         : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} mobile /></div>}
       {(hasChildren || role === "pengajar") && (
         <div style={{ marginTop: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis di halaman ini</div>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis, tugas & buku di halaman ini</div>
           {role === "pengajar" && <AddInside />}
           <PageRows container={container} basePath={nav.path} Row={Row} />
         </div>
@@ -1063,7 +1224,7 @@ function flattenSearch(data) {
       const walk = (container, basePath) => {
         for (const [pk, p] of Object.entries(container)) {
           const full = [...basePath, pk];
-          out.push({ label: p.title, type: p.kind === "quiz" ? "Kuis" : "Halaman", ctx: s.title, nav: { notebook: nk, section: sk, path: full, view: "materi" } });
+          out.push({ label: p.title, type: p.kind === "quiz" ? "Kuis" : p.kind === "tugas" ? "Tugas" : p.kind === "referensi" ? "Buku kedokteran" : "Halaman", ctx: s.title, nav: { notebook: nk, section: sk, path: full, view: "materi" } });
           if (p.children) walk(p.children, full);
         }
       };
@@ -1080,7 +1241,7 @@ function SearchOverlay({ onClose }) {
   const entries = flattenSearch(data);
   const term = q.trim().toLowerCase();
   const results = term ? entries.filter((e) => e.label.toLowerCase().includes(term)).slice(0, 40) : [];
-  const iconFor = (t) => t === "Buku" ? <BookOpen size={17} color={C.blue} /> : t === "Bagian" ? <Layers size={17} color={C.blue} /> : t === "Kuis" ? <ListChecks size={17} color={C.blue} /> : <FileText size={17} color={C.blue} />;
+  const iconFor = (t) => t === "Buku" ? <BookOpen size={17} color={C.blue} /> : t === "Bagian" ? <Layers size={17} color={C.blue} /> : t === "Kuis" ? <ListChecks size={17} color={C.blue} /> : t === "Tugas" ? <FileUp size={17} color={C.blue} /> : t === "Buku kedokteran" ? <Library size={17} color={C.blue} /> : <FileText size={17} color={C.blue} />;
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 130, background: C.white, fontFamily: FONT, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", background: C.blue }}>
@@ -1349,14 +1510,16 @@ const pStyle = () => ({ fontSize: 14, color: C.sub, margin: "0 0 22px" });
 function PageViewDesktop({ node, container }) {
   const { role, nav } = useApp();
   const isQuiz = node.kind === "quiz";
+  const isLinkKind = node.kind === "tugas" || node.kind === "referensi";
   const hasChildren = Object.keys(container).length > 0;
   if (isQuiz) return role === "pengajar" ? <QuizEditor node={node} /> : <QuizRunner node={node} />;
+  if (isLinkKind) return role === "pengajar" ? <LinkResourceEditor node={node} /> : <LinkResourceViewer node={node} />;
   return (
     <div>
       {role === "pengajar" ? <PageContentEditor node={node} /> : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} /></div>}
       {(hasChildren || role === "pengajar") && (
         <div style={{ marginTop: 30 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis di halaman ini</div>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis, tugas & buku di halaman ini</div>
           {role === "pengajar" && <AddInside />}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={nav.path} Row={DeskRow} /></div>
         </div>

@@ -92,7 +92,7 @@ const ImageFigure = Node.create({
   }
 });
 
-export function tiptapExtensions() {
+export function tiptapExtensions(placeholderText) {
   return [
     StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
     TextStyle,
@@ -104,7 +104,7 @@ export function tiptapExtensions() {
     ImageFigure,
     YoutubeNode,
     Placeholder.configure({
-      placeholder: ({ node }) => node.type.name === "imageFigure" ? "Keterangan gambar (opsional, bisa diformat)" : "Tulis materi di sini... gunakan toolbar di atas untuk mengatur huruf, warna, poin, tabel, gambar, dan video.",
+      placeholder: ({ node }) => node.type.name === "imageFigure" ? "Keterangan gambar (opsional, bisa diformat)" : (placeholderText || "Tulis materi di sini... gunakan toolbar di atas untuk mengatur huruf, warna, poin, tabel, gambar, dan video."),
       showOnlyCurrent: false
     })
   ];
