@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
-import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy } from "lucide-react";
+import { useTiptapEditor, TiptapContent, tiptapExtensions } from "./lib/editor";
+import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon } from "lucide-react";
 
 /* ===== label istilah ===== */
 const L = { book: "Buku", section: "Bagian", page: "Halaman" };
@@ -209,7 +210,7 @@ function useMutations(data, setData, ask) {
         let sk = nav.section || Object.keys(sections)[0];
         if (!sk) { sk = slug("bab"); sections[sk] = { title: `${L.section} 1`, code: "B1", pages: {} }; }
         const parentPath = nav.section ? nav.path : [];
-        const newNode = { title: name, code: "", color: r.color, cover: r.cover, content: [{ type: "p", text: "Tulis materi di sini..." }], children: {} };
+        const newNode = { title: name, code: "", color: r.color, cover: r.cover, contentHtml: "", children: {} };
         const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
         sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
         return { ...d, [nb]: { ...notebook, sections } };
@@ -374,36 +375,71 @@ function SignedImg({ src, alt, style, onError }) {
   return <img src={url} alt={alt || ""} style={style} onError={onError} />;
 }
 
-function Block({ b, i }) {
-  if (b.type === "h") return <h2 data-h={i} style={{ fontSize: 14, fontWeight: 800, color: C.navy, margin: "20px 0 10px", scrollMarginTop: 20 }}>{b.text}</h2>;
-  if (b.type === "p") {
-    const st = { fontSize: 12.8, lineHeight: 1.72, color: C.body, margin: "0 0 12px" };
-    return b.html ? <p style={st} dangerouslySetInnerHTML={{ __html: sanitize(b.html) }} /> : <p style={st}>{b.text}</p>;
-  }
-  if (b.type === "list") return <ul style={{ paddingLeft: 20, margin: "0 0 12px" }}>{b.items.filter(Boolean).map((it, k) => <li key={k} style={{ fontSize: 12.8, lineHeight: 1.72, color: C.body, marginBottom: 5 }}>{it}</li>)}</ul>;
-  if (b.type === "highlight") return <div style={{ background: C.blueTint, borderRadius: 12, padding: "12px 15px", fontSize: 12, lineHeight: 1.6, color: C.navy, fontWeight: 500, margin: "0 0 15px" }}>{b.text}</div>;
-  if (b.type === "image") return b.src ? <div style={{ margin: "0 0 16px" }}><SignedImg src={b.src} alt={b.caption || ""} style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 4px 16px rgba(12,111,192,.1)" }} />{b.caption && <div style={{ marginTop: 8, fontSize: 12.5, color: C.sub }}>{b.caption}</div>}</div> : null;
-  if (b.type === "video") return b.videoId ? (
-    <div style={{ margin: "0 0 16px" }}>
-      <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 14, overflow: "hidden", boxShadow: "0 6px 22px rgba(12,111,192,.12)" }}>
-        <iframe src={`https://www.youtube.com/embed/${b.videoId}`} title={b.caption} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-      </div>
-      {b.caption && <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 9, fontSize: 12.5, color: C.sub }}><PlayCircle size={14} />{b.caption}</div>}
-    </div>
-  ) : null;
-  return null;
-}
+
 
 /* ===== daftar isi (ToC) otomatis dari heading ===== */
 const tocLink = (active) => ({ display: "block", width: "100%", textAlign: "left", padding: "7px 12px", border: "none", borderLeft: `2px solid ${active ? C.blue : "transparent"}`, background: "transparent", color: active ? C.blue : C.sub, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" });
-function ArticleWithToc({ content, mobile }) {
+/* ===== migrasi konten lama (array block) -> HTML editor ===== */
+function blocksToHtml(blocks) {
+  return blocks.map((b) => {
+    if (b.type === "h") return `<h2>${esc(b.text)}</h2>`;
+    if (b.type === "p") return b.html ? `<p>${sanitize(b.html)}</p>` : `<p>${esc(b.text)}</p>`;
+    if (b.type === "list") return `<ul>${(b.items || []).filter(Boolean).map((it) => `<li>${esc(it)}</li>`).join("")}</ul>`;
+    if (b.type === "highlight") return `<p><mark>${esc(b.text)}</mark></p>`;
+    if (b.type === "image") return b.src ? `<figure data-image-figure><img src="mk-key:${esc(b.src)}"><figcaption>${esc(b.caption || "")}</figcaption></figure>` : "";
+    if (b.type === "video") return b.videoId ? `<div data-youtube-video="${esc(b.videoId)}" data-caption="${esc(b.caption || "")}"></div>` : "";
+    return "";
+  }).join("");
+}
+// halaman lama pakai `content` (array); halaman baru pakai `contentHtml` (string). Konversi sekali saat baca.
+function pageHtml(node) {
+  if (node.contentHtml != null) return node.contentHtml;
+  if (node.content && node.content.length) return blocksToHtml(node.content);
+  return "";
+}
+// sebelum masuk editor: ganti src="mk-key:xxx" jadi signed URL asli, biar gambar lama kelihatan saat diedit
+async function resolveKeyedImages(html) {
+  if (!html || !html.includes("mk-key:")) return html || "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const imgs = Array.from(doc.querySelectorAll('img[src^="mk-key:"]'));
+  await Promise.all(imgs.map(async (img) => {
+    const key = img.getAttribute("src").slice(7);
+    let url;
+    const cached = signedUrlCache.get(key);
+    if (cached && cached.expires > Date.now()) url = cached.url;
+    else { try { url = await storage.gambarSignedUrl(key); signedUrlCache.set(key, { url, expires: Date.now() + 50 * 60 * 1000 }); } catch { url = ""; } }
+    if (url) { img.setAttribute("src", url); img.setAttribute("data-key", key); }
+  }));
+  return doc.body.innerHTML;
+}
+// sebelum simpan ke database: ganti signed URL balik jadi "mk-key:xxx" (URL bisa expired, key permanen)
+function htmlToStoredKeys(html) {
+  if (!html) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  Array.from(doc.querySelectorAll("img[data-key]")).forEach((img) => {
+    const key = img.getAttribute("data-key");
+    if (key) img.setAttribute("src", "mk-key:" + key);
+  });
+  return doc.body.innerHTML;
+}
+
+/* ===== render artikel (pelajar, read-only) dengan ToC dari heading ===== */
+function ArticleWithToc({ html, mobile }) {
   const rootRef = useRef(null);
+  const bodyRef = useRef(null);
   const [open, setOpen] = useState(false);
-  const heads = content.map((b, i) => ({ b, i })).filter((x) => x.b.type === "h");
+  const [heads, setHeads] = useState([]);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const hs = Array.from(el.querySelectorAll("h1,h2,h3")).map((n, i) => { n.setAttribute("data-h", i); return { i, text: n.textContent }; });
+    setHeads(hs);
+  }, [html]);
   const show = heads.length >= 3;
   const goto = (i) => { const el = rootRef.current?.querySelector(`[data-h="${i}"]`); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); setOpen(false); };
-  const body = <div style={{ flex: 1, minWidth: 0 }}>{content.map((b, i) => <Block key={i} b={b} i={i} />)}</div>;
-  if (!show) return <div ref={rootRef}>{body}</div>;
+  const body = <div ref={bodyRef} className="mk-article" dangerouslySetInnerHTML={{ __html: sanitize(html || "") }} />;
+  const withImgs = <>{body}<KeyedImages containerRef={bodyRef} /></>;
+  if (!show) return <div ref={rootRef}>{withImgs}</div>;
   if (mobile) return (
     <div ref={rootRef}>
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 18, overflow: "hidden" }}>
@@ -411,119 +447,206 @@ function ArticleWithToc({ content, mobile }) {
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: C.navy }}><List size={15} color={C.blue} /> Daftar isi</span>
           <ChevronDown size={16} color={C.sub} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
         </button>
-        {open && <div style={{ padding: "6px 6px 10px" }}>{heads.map((h) => <button key={h.i} onClick={() => goto(h.i)} style={tocLink(false)}>{h.b.text}</button>)}</div>}
+        {open && <div style={{ padding: "6px 6px 10px" }}>{heads.map((h) => <button key={h.i} onClick={() => goto(h.i)} style={tocLink(false)}>{h.text}</button>)}</div>}
       </div>
-      {body}
+      {withImgs}
     </div>
   );
   return (
     <div ref={rootRef} style={{ display: "flex", gap: 28, alignItems: "flex-start" }}>
       <nav style={{ position: "sticky", top: 20, width: 190, flexShrink: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 10, paddingLeft: 12 }}>Daftar isi</div>
-        {heads.map((h) => <button key={h.i} onClick={() => goto(h.i)} style={tocLink(false)}>{h.b.text}</button>)}
+        {heads.map((h) => <button key={h.i} onClick={() => goto(h.i)} style={tocLink(false)}>{h.text}</button>)}
       </nav>
-      {body}
+      {withImgs}
     </div>
   );
 }
 
-/* ===== rich text inline (paragraf) ===== */
-const RT_COLORS = ["#118EEA", "#D0342C", "#16A34A", "#7C3AED"];
-function RichText({ html, onChange }) {
-  const ref = useRef(null);
-  useEffect(() => { if (ref.current && ref.current.innerHTML !== (html || "")) ref.current.innerHTML = html || ""; }, []);
-  const save = () => onChange(ref.current.innerHTML);
-  const exec = (cmd, val) => { ref.current.focus(); document.execCommand(cmd, false, val); save(); };
-  const tbtn = { width: 30, height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 13, fontWeight: 800, color: C.navy, display: "flex", alignItems: "center", justifyContent: "center" };
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 7, flexWrap: "wrap" }}>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); exec("bold"); }} style={tbtn}>B</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); exec("italic"); }} style={{ ...tbtn, fontStyle: "italic", fontWeight: 600 }}>I</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); exec("underline"); }} style={{ ...tbtn, textDecoration: "underline", fontWeight: 600 }}>U</button>
-        <div style={{ width: 1, height: 20, background: C.border, margin: "0 3px" }} />
-        {RT_COLORS.map((c) => <button key={c} type="button" onMouseDown={(e) => { e.preventDefault(); exec("foreColor", c); }} aria-label={"warna " + c} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${C.white}`, boxShadow: `0 0 0 1px ${C.border}`, background: c, cursor: "pointer" }} />)}
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); }} style={{ ...tbtn, width: "auto", padding: "0 8px", fontSize: 11, fontWeight: 700, color: C.sub }}>Bersihkan</button>
-      </div>
-      <div ref={ref} contentEditable suppressContentEditableWarning onInput={save} onBlur={save} style={{ minHeight: 44, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 11px", fontSize: 14, lineHeight: 1.6, color: C.ink, fontFamily: FONT, outline: "none", background: C.bg }} />
-    </div>
-  );
-}
-
-/* ===== editor konten (pengajar) ===== */
-function AutoTextarea({ value, onChange, placeholder, style }) {
-  const ref = useRef(null);
-  const resize = () => { const el = ref.current; if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } };
-  useEffect(() => { resize(); }, [value]);
-  return <textarea ref={ref} value={value} onChange={onChange} placeholder={placeholder} rows={1} style={{ ...style, resize: "none", overflow: "hidden" }} />;
-}
-const blockLabel = (t) => ({ h: "Judul", p: "Paragraf", list: "Poin", highlight: "Sorotan", image: "Gambar", video: "Video" }[t] || t);
-function extractYT(url) { if (!url) return ""; const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/); return m ? m[1] : url.trim(); }
-
-function EditBlock({ b, onUpdate }) {
-  const ta = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 11px", fontSize: 14, lineHeight: 1.6, color: C.ink, fontFamily: FONT, outline: "none", boxSizing: "border-box", background: C.bg };
-  if (b.type === "h") return <input value={b.text} onChange={(e) => onUpdate({ text: e.target.value })} style={{ ...ta, fontWeight: 700 }} />;
-  if (b.type === "p") return <RichText html={b.html ?? esc(b.text)} onChange={(h) => onUpdate({ html: h, text: stripHtml(h) })} />;
-  if (b.type === "highlight") return <AutoTextarea value={b.text} onChange={(e) => onUpdate({ text: e.target.value })} style={ta} />;
-  if (b.type === "list") return <AutoTextarea value={b.items.join("\n")} onChange={(e) => onUpdate({ items: e.target.value.split("\n") })} placeholder="Satu poin per baris" style={ta} />;
-  if (b.type === "image") return (
-    <div>
-      {b.src ? <SignedImg src={b.src} alt="" style={{ width: "100%", borderRadius: 10, display: "block", marginBottom: 8 }} /> : (
-        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 26, border: `1.5px dashed ${C.border}`, borderRadius: 10, cursor: "pointer", background: C.bg, marginBottom: 8 }}>
-          <Upload size={22} color={C.blue} /><span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>Klik untuk unggah gambar</span>
-          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await storage.uploadGambar(f, { prefix: "materi/" }); onUpdate({ src: url }); } catch (err) { alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err)); } }} />
-        </label>
-      )}
-      {b.src && <label style={{ display: "inline-block", fontSize: 12.5, color: C.blue, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>Ganti gambar<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await storage.uploadGambar(f, { prefix: "materi/" }); onUpdate({ src: url }); } catch (err) { alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err)); } }} /></label>}
-      <input value={b.caption} onChange={(e) => onUpdate({ caption: e.target.value })} placeholder="Keterangan (opsional)" style={{ ...ta, marginTop: 4 }} />
-    </div>
-  );
-  if (b.type === "video") return (
-    <div>
-      <input value={b.videoId} onChange={(e) => onUpdate({ videoId: extractYT(e.target.value) })} placeholder="Tempel link YouTube" style={ta} />
-      {b.videoId && <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 10, overflow: "hidden", margin: "10px 0 8px" }}><iframe src={`https://www.youtube.com/embed/${b.videoId}`} title="preview" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} allowFullScreen /></div>}
-      <input value={b.caption} onChange={(e) => onUpdate({ caption: e.target.value })} placeholder="Keterangan (opsional)" style={{ ...ta, marginTop: 4 }} />
-    </div>
-  );
+/* ===== gambar privat B2: <img src="mk-key:xxx"> di HTML tersimpan -> resolve jadi signed URL saat tampil ===== */
+function KeyedImages({ containerRef }) {
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const imgs = Array.from(root.querySelectorAll('img[src^="mk-key:"]'));
+    let alive = true;
+    imgs.forEach((img) => {
+      const key = img.getAttribute("src").slice(7);
+      const cached = signedUrlCache.get(key);
+      if (cached && cached.expires > Date.now()) { img.src = cached.url; return; }
+      storage.gambarSignedUrl(key).then((u) => {
+        if (!alive) return;
+        signedUrlCache.set(key, { url: u, expires: Date.now() + 50 * 60 * 1000 });
+        img.src = u;
+      }).catch(() => {});
+    });
+    return () => { alive = false; };
+  });
   return null;
 }
-function CtrlBtn({ icon: Icon, onClick, disabled, danger }) {
-  return <button onClick={onClick} disabled={disabled} style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1 }}><Icon size={13} color={danger ? C.danger : C.sub} /></button>;
+
+/* ===== toolbar gaya Word (Tiptap) ===== */
+const FONT_SIZES = ["12", "14", "16", "18", "20", "24", "28", "32"];
+const TEXT_COLORS = ["#101828", "#118EEA", "#D0342C", "#16A34A", "#7C3AED", "#B8860B"];
+function TbBtn({ onClick, active, disabled, title, children }) {
+  return (
+    <button type="button" title={title} disabled={disabled} onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      style={{ minWidth: 30, height: 28, padding: "0 6px", borderRadius: 7, border: `1px solid ${active ? C.blue : C.border}`, background: active ? C.blueTint : C.white, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1, fontSize: 13, fontWeight: 700, color: active ? C.navy : C.ink, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT }}>
+      {children}
+    </button>
+  );
 }
+function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading }) {
+  if (!editor) return null;
+  const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
+  const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
+  const inTable = editor.isActive("table");
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: "sticky", top: 0, zIndex: 2 }}>
+      <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
+        onChange={(e) => { const v = e.target.value; if (v === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(v[1]) }).run(); }}
+        style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
+        <option value="p">Normal</option>
+        <option value="h1">Judul 1</option>
+        <option value="h2">Judul 2</option>
+        <option value="h3">Judul 3</option>
+      </select>
+      <select value={currentSize} onChange={(e) => editor.chain().focus().setFontSize(e.target.value + "px").run()}
+        style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
+        {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+      </select>
+      {sep}
+      <TbBtn title="Tebal" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>B</TbBtn>
+      <TbBtn title="Miring" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><span style={{ fontStyle: "italic" }}>I</span></TbBtn>
+      <TbBtn title="Garis bawah" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><span style={{ textDecoration: "underline" }}>U</span></TbBtn>
+      <TbBtn title="Coret" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: "line-through" }}>S</span></TbBtn>
+      {sep}
+      {TEXT_COLORS.map((c) => (
+        <button key={c} type="button" title={"Warna teks " + c} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setColor(c).run(); }}
+          style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${C.white}`, boxShadow: `0 0 0 1px ${C.border}`, background: c, cursor: "pointer" }} />
+      ))}
+      <TbBtn title="Sorot kuning" active={editor.isActive("highlight")} onClick={() => editor.chain().focus().toggleHighlight({ color: "#FEF08A" }).run()}>
+        <span style={{ background: "#FEF08A", padding: "0 3px", borderRadius: 3 }}>H</span>
+      </TbBtn>
+      {sep}
+      <TbBtn title="Rata kiri" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}><AlignLeft size={14} /></TbBtn>
+      <TbBtn title="Rata tengah" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter size={14} /></TbBtn>
+      <TbBtn title="Rata kanan" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight size={14} /></TbBtn>
+      {sep}
+      <TbBtn title="Poin" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={14} /></TbBtn>
+      <TbBtn title="Penomoran" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={14} /></TbBtn>
+      <TbBtn title="Kurangi indentasi" onClick={() => editor.chain().focus().liftListItem("listItem").run()}><Outdent size={14} /></TbBtn>
+      <TbBtn title="Tambah indentasi" onClick={() => editor.chain().focus().sinkListItem("listItem").run()}><Indent size={14} /></TbBtn>
+      {sep}
+      <label style={{ display: "flex", alignItems: "center" }}>
+        <TbBtn title="Sisipkan gambar" as="span" disabled={uploading} onClick={() => document.getElementById("mk-img-input")?.click()}>{uploading ? "…" : <ImageIcon size={14} />}</TbBtn>
+        <input id="mk-img-input" type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onInsertImage(f); e.target.value = ""; }} />
+      </label>
+      <TbBtn title="Sisipkan video YouTube" onClick={() => {
+        const url = window.prompt("Tempel link YouTube:");
+        const id = extractYT(url || "");
+        if (id) editor.chain().focus().insertContent({ type: "youtube", attrs: { videoId: id, caption: "" } }).run();
+      }}><Video size={14} /></TbBtn>
+      <TbBtn title="Sisipkan tabel" onClick={onInsertTable}><TableIcon size={14} /></TbBtn>
+      {inTable && <>
+        {sep}
+        <TbBtn title="Tambah baris" onClick={() => editor.chain().focus().addRowAfter().run()}>+Baris</TbBtn>
+        <TbBtn title="Hapus baris" onClick={() => editor.chain().focus().deleteRow().run()}>−Baris</TbBtn>
+        <TbBtn title="Tambah kolom" onClick={() => editor.chain().focus().addColumnAfter().run()}>+Kolom</TbBtn>
+        <TbBtn title="Hapus kolom" onClick={() => editor.chain().focus().deleteColumn().run()}>−Kolom</TbBtn>
+        <TbBtn title="Hapus tabel" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} /></TbBtn>
+      </>}
+      {sep}
+      <TbBtn title="Bersihkan format" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>⨉</TbBtn>
+    </div>
+  );
+}
+function extractYT(url) { if (!url) return ""; const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/); return m ? m[1] : ""; }
+
+/* ===== editor konten gaya Word (pengajar) ===== */
 function PageContentEditor({ node }) {
   const { nav, mut } = useApp();
   const [saved, setSaved] = useState(false);
-  const blocks = node.content || [];
-  const setContent = (b) => mut.setPageContent(nav.notebook, nav.section, nav.path, { content: b });
+  const [uploading, setUploading] = useState(false);
+  const [ready, setReady] = useState(false);
+  const resolvedHtml = useRef("");
+  const bodyRef = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    resolveKeyedImages(pageHtml(node)).then((html) => {
+      if (!alive) return;
+      resolvedHtml.current = html;
+      setReady(true);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav.notebook, nav.section, nav.path]);
+
+  return ready ? <PageContentEditorReady node={node} initialHtml={resolvedHtml.current} /> : (
+    <div style={{ padding: 40, textAlign: "center", color: C.sub, fontSize: 13 }}>Memuat editor…</div>
+  );
+}
+function PageContentEditorReady({ node, initialHtml }) {
+  const { nav, mut } = useApp();
+  const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const bodyRef = useRef(null);
+
+  const editor = useTiptapEditor({
+    extensions: tiptapExtensions(),
+    content: initialHtml,
+    editorProps: { attributes: { class: "mk-article mk-edit", style: `font-family:${FONT}` } }
+  });
+
   const setTitle = (t) => mut.setPageContent(nav.notebook, nav.section, nav.path, { title: t });
-  const update = (i, patch) => setContent(blocks.map((b, idx) => idx === i ? { ...b, ...patch } : b));
-  const remove = (i) => setContent(blocks.filter((_, idx) => idx !== i));
-  const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= blocks.length) return; const n = [...blocks]; [n[i], n[j]] = [n[j], n[i]]; setContent(n); };
-  const add = (type) => setContent([...blocks, { h: { type: "h", text: "Judul baru" }, p: { type: "p", text: "Tulis paragraf..." }, list: { type: "list", items: ["Poin pertama"] }, highlight: { type: "highlight", text: "Catatan penting..." }, image: { type: "image", src: "", caption: "" }, video: { type: "video", videoId: "", caption: "" } }[type]]);
+  const doSave = () => {
+    if (!editor) return;
+    mut.setPageContent(nav.notebook, nav.section, nav.path, { contentHtml: htmlToStoredKeys(editor.getHTML()), content: undefined });
+    setSaved(true); setTimeout(() => setSaved(false), 1600);
+  };
+  const togglePreview = () => {
+    if (!preview && editor) setPreviewHtml(editor.getHTML()); // ambil isi terkini (termasuk yang belum disimpan)
+    setPreview((p) => !p);
+  };
+  const insertImage = async (file) => {
+    setUploading(true);
+    try {
+      const key = await storage.uploadGambar(file, { prefix: "materi/" });
+      const url = await storage.gambarSignedUrl(key);
+      signedUrlCache.set(key, { url, expires: Date.now() + 50 * 60 * 1000 });
+      editor.chain().focus().insertContent({ type: "imageFigure", attrs: { src: url, "data-key": key } }).run();
+    } catch (err) {
+      alert("Upload gambar gagal. Pastikan Backblaze B2 sudah dikonfigurasi (lihat tutorial).\n" + (err?.message || err));
+    } finally { setUploading(false); }
+  };
+  const insertTable = () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+
+  if (!editor) return null;
   return (
     <div>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, marginBottom: 14 }}><Edit3 size={13} /> Mode edit</div>
-      <input value={node.title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: -.4, border: "none", borderBottom: `2px solid ${C.border}`, outline: "none", padding: "4px 0 8px", marginBottom: 20, fontFamily: FONT, background: "transparent" }} />
-      {blocks.map((b, i) => (
-        <div key={i} style={{ position: "relative", border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 14px 14px 16px", marginBottom: 12, background: C.white }}>
-          <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
-            <CtrlBtn icon={ArrowUp} onClick={() => move(i, -1)} disabled={i === 0} />
-            <CtrlBtn icon={ArrowDown} onClick={() => move(i, 1)} disabled={i === blocks.length - 1} />
-            <CtrlBtn icon={Trash2} onClick={() => remove(i)} danger />
-          </div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 8 }}>{blockLabel(b.type)}</div>
-          <EditBlock b={b} onUpdate={(patch) => update(i, patch)} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: preview ? C.blueTint : "#FEF3C7", color: preview ? C.navy : "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20 }}>
+          {preview ? <><Eye size={13} /> Pratinjau (tampilan pelajar)</> : <><Edit3 size={13} /> Mode edit</>}
         </div>
-      ))}
-      <div style={{ border: `1px dashed ${C.border}`, borderRadius: 14, padding: 16, marginTop: 6 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: C.sub, marginBottom: 10 }}>Tambah konten</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {[["h", "Judul", Type], ["p", "Paragraf", AlignLeft], ["list", "Poin", List], ["highlight", "Sorotan", Star], ["image", "Gambar", ImageIcon], ["video", "Video", Video]].map(([t, label, Icon]) => (
-            <button key={t} onClick={() => add(t)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.white, color: C.navy, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}><Icon size={15} color={C.blue} /> {label}</button>
-          ))}
-        </div>
+        <button onClick={togglePreview} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.white, color: C.navy, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
+          {preview ? <><Edit3 size={14} /> Kembali edit</> : <><Eye size={14} /> Pratinjau</>}
+        </button>
       </div>
-      <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1600); }} style={{ marginTop: 18, padding: "12px 24px", borderRadius: 12, border: "none", background: saved ? "#16A34A" : C.blue, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 8 }}>{saved ? <><Check size={16} /> Tersimpan</> : <><Save size={16} /> Simpan materi</>}</button>
+      {preview ? (
+        <div style={{ maxWidth: 680 }}><ArticleWithToc html={previewHtml} /></div>
+      ) : (
+        <>
+          <input value={node.title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: -.4, border: "none", borderBottom: `2px solid ${C.border}`, outline: "none", padding: "4px 0 8px", marginBottom: 20, fontFamily: FONT, background: "transparent" }} />
+          <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} />
+          <div ref={bodyRef} style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "14px 16px", minHeight: 240, background: C.white }}>
+            <TiptapContent editor={editor} />
+          </div>
+          <button onClick={doSave} style={{ marginTop: 18, padding: "12px 24px", borderRadius: 12, border: "none", background: saved ? "#16A34A" : C.blue, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 8 }}>{saved ? <><Check size={16} /> Tersimpan</> : <><Save size={16} /> Simpan materi</>}</button>
+        </>
+      )}
     </div>
   );
 }
@@ -692,7 +815,7 @@ function PageView({ node, container, Row }) {
   return (
     <div>
       {role === "pengajar" ? <PageContentEditor node={node} />
-        : <div style={{ maxWidth: 680 }}><ArticleWithToc content={node.content || []} mobile /></div>}
+        : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} mobile /></div>}
       {(hasChildren || role === "pengajar") && (
         <div style={{ marginTop: 28 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis di halaman ini</div>
@@ -1230,7 +1353,7 @@ function PageViewDesktop({ node, container }) {
   if (isQuiz) return role === "pengajar" ? <QuizEditor node={node} /> : <QuizRunner node={node} />;
   return (
     <div>
-      {role === "pengajar" ? <PageContentEditor node={node} /> : <div style={{ maxWidth: 680 }}>{(node.content || []).map((b, i) => <Block key={i} b={b} i={i} />)}</div>}
+      {role === "pengajar" ? <PageContentEditor node={node} /> : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} /></div>}
       {(hasChildren || role === "pengajar") && (
         <div style={{ marginTop: 30 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis di halaman ini</div>
@@ -1609,6 +1732,25 @@ export default function App() {
         .mk-card:active{transform:scale(0.985);}
         @media (hover:hover){.mk-card:hover{box-shadow:0 4px 16px rgba(12,30,60,0.10);}}
         @media (prefers-reduced-motion: reduce){*{transition-duration:.01ms !important;animation-duration:.01ms !important;}}
+        .mk-article{font-size:14px;line-height:1.72;color:${C.body};}
+        .mk-article h1{font-size:22px;font-weight:800;color:${C.navy};margin:22px 0 10px;scroll-margin-top:20px;}
+        .mk-article h2{font-size:18px;font-weight:800;color:${C.navy};margin:20px 0 10px;scroll-margin-top:20px;}
+        .mk-article h3{font-size:15px;font-weight:800;color:${C.navy};margin:16px 0 8px;scroll-margin-top:20px;}
+        .mk-article p{margin:0 0 12px;}
+        .mk-article ul,.mk-article ol{padding-left:22px;margin:0 0 12px;}
+        .mk-article li{margin-bottom:5px;}
+        .mk-article mark{background:#FEF08A;color:inherit;border-radius:3px;padding:0 2px;}
+        .mk-article img{max-width:100%;border-radius:14px;display:block;margin:6px 0 16px;box-shadow:0 4px 16px rgba(12,111,192,.1);}
+        .mk-article figure{margin:0 0 16px;}
+        .mk-article figure img{margin-bottom:0;}
+        .mk-article figcaption{font-size:12.5px;color:${C.sub};text-align:center;margin-top:7px;}
+        .mk-article table{border-collapse:collapse;width:100%;margin:0 0 16px;table-layout:fixed;}
+        .mk-article th,.mk-article td{border:1px solid ${C.border};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;}
+        .mk-article th{background:${C.bg};font-weight:700;color:${C.navy};}
+        .mk-article a{color:${C.blue};}
+        .mk-edit{min-height:220px;outline:none;}
+        .mk-edit p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:${C.sub};float:left;height:0;pointer-events:none;}
+        .mk-edit .ProseMirror{outline:none;}
       `}</style>
       {isMobile ? <MobileShell /> : <DesktopShell />}
       <AskModal modal={modal} onClose={() => setModal(null)} />
