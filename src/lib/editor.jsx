@@ -8,6 +8,9 @@ import { Highlight } from "@tiptap/extension-highlight";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { BulletList } from "@tiptap/extension-bullet-list";
 import { Node, mergeAttributes } from "@tiptap/core";
 import * as storage from "./storage";
 
@@ -120,16 +123,43 @@ const ImageFigure = Node.create({
   }
 });
 
+/* ===== tabel: sel bisa diwarnai (shading, seperti MS Word) ===== */
+const CELL_BG_ATTR = {
+  backgroundColor: {
+    default: null,
+    parseHTML: (el) => el.style.backgroundColor || null,
+    renderHTML: (attrs) => attrs.backgroundColor ? { style: `background-color:${attrs.backgroundColor}` } : {}
+  }
+};
+const ShadedTableCell = TableCell.extend({ addAttributes() { return { ...this.parent?.(), ...CELL_BG_ATTR }; } });
+const ShadedTableHeader = TableHeader.extend({ addAttributes() { return { ...this.parent?.(), ...CELL_BG_ATTR }; } });
+
+/* ===== daftar poin: gaya bullet bisa dipilih (titik/lingkaran/kotak), seperti MS Word ===== */
+const StyledBulletList = BulletList.extend({
+  addAttributes() {
+    return {
+      listStyleType: {
+        default: null,
+        parseHTML: (el) => el.style.listStyleType || null,
+        renderHTML: (attrs) => attrs.listStyleType ? { style: `list-style-type:${attrs.listStyleType}` } : {}
+      }
+    };
+  }
+});
+
 export function tiptapExtensions(placeholderText) {
   return [
-    StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+    StarterKit.configure({ heading: { levels: [1, 2, 3] }, bulletList: false }),
+    StyledBulletList,
     TextStyle,
     FontSize,
     FontFamily,
     Color,
     Highlight.configure({ multicolor: true }),
     TextAlign.configure({ types: ["heading", "paragraph"] }),
-    TableKit.configure({ table: { resizable: true } }),
+    TableKit.configure({ table: { resizable: true }, tableCell: false, tableHeader: false }),
+    ShadedTableCell,
+    ShadedTableHeader,
     ImageFigure,
     YoutubeNode,
     Placeholder.configure({

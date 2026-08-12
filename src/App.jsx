@@ -569,6 +569,51 @@ function TbBtn({ onClick, active, disabled, title, children }) {
     </button>
   );
 }
+/* ===== tombol daftar dengan varian: klik = gaya default, klik panah = pilih varian (seperti MS Word) ===== */
+const BULLET_VARIANTS = [{ v: null, label: "Titik", css: "disc" }, { v: "circle", label: "Lingkaran", css: "circle" }, { v: "square", label: "Kotak", css: "square" }];
+const ORDERED_VARIANTS = [{ v: null, label: "1, 2, 3…" }, { v: "a", label: "a, b, c…" }, { v: "A", label: "A, B, C…" }, { v: "i", label: "i, ii, iii…" }, { v: "I", label: "I, II, III…" }];
+function ListButton({ editor, kind }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const isBullet = kind === "bullet";
+  const active = editor.isActive(isBullet ? "bulletList" : "orderedList");
+  const Icon = isBullet ? List : ListOrdered;
+  const variants = isBullet ? BULLET_VARIANTS : ORDERED_VARIANTS;
+  const applyDefault = () => { if (isBullet) editor.chain().focus().toggleBulletList().run(); else editor.chain().focus().toggleOrderedList().run(); };
+  const applyVariant = (v) => {
+    if (isBullet) { if (!editor.isActive("bulletList")) editor.chain().focus().toggleBulletList().run(); editor.chain().focus().updateAttributes("bulletList", { listStyleType: v }).run(); }
+    else { if (!editor.isActive("orderedList")) editor.chain().focus().toggleOrderedList().run(); editor.chain().focus().updateAttributes("orderedList", { type: v }).run(); }
+    setOpen(false);
+  };
+  return (
+    <div ref={ref} style={{ position: "relative", display: "flex" }}>
+      <button type="button" title={isBullet ? "Poin" : "Penomoran"} onMouseDown={(e) => { e.preventDefault(); applyDefault(); }}
+        style={{ width: 28, height: 28, borderRadius: "7px 0 0 7px", border: `1px solid ${active ? C.blue : C.border}`, borderRight: "none", background: active ? C.blueTint : C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Icon size={14} color={active ? C.navy : C.ink} />
+      </button>
+      <button type="button" title="Pilih gaya" onMouseDown={(e) => { e.preventDefault(); setOpen((o) => !o); }}
+        style={{ width: 16, height: 28, borderRadius: "0 7px 7px 0", border: `1px solid ${active ? C.blue : C.border}`, background: active ? C.blueTint : C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <ChevronDown size={11} color={active ? C.navy : C.sub} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: 32, left: 0, zIndex: 10, background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 4, minWidth: 130 }}>
+          {variants.map((vr) => (
+            <button key={vr.label} onMouseDown={(e) => { e.preventDefault(); applyVariant(vr.v); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 7, border: "none", background: "transparent", color: C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+              {vr.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compact }) {
   if (!editor) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
@@ -611,8 +656,8 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
       <TbBtn title="Rata tengah" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter size={14} /></TbBtn>
       <TbBtn title="Rata kanan" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight size={14} /></TbBtn>
       {sep}
-      <TbBtn title="Poin" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={14} /></TbBtn>
-      <TbBtn title="Penomoran" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={14} /></TbBtn>
+      <ListButton editor={editor} kind="bullet" />
+      <ListButton editor={editor} kind="ordered" />
       <TbBtn title="Kurangi indentasi" onClick={() => editor.chain().focus().liftListItem("listItem").run()}><Outdent size={14} /></TbBtn>
       <TbBtn title="Tambah indentasi" onClick={() => editor.chain().focus().sinkListItem("listItem").run()}><Indent size={14} /></TbBtn>
       {sep}
@@ -658,6 +703,18 @@ function TableGrip({ editor }) {
         </div>
         {sep}
         <div style={col}>
+          <div style={groupLabel}>Warna sel</div>
+          <div style={{ display: "flex", gap: 6, padding: "4px 10px 8px" }}>
+            {CELL_SHADES.map((s) => (
+              <button key={s.v || "none"} title={s.label} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setCellAttribute("backgroundColor", s.v).run(); }}
+                style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${s.v ? "transparent" : C.border}`, background: s.v || C.white, cursor: "pointer", position: "relative" }}>
+                {!s.v && <X size={12} color={C.sub} style={{ position: "absolute", top: 3, left: 3 }} />}
+              </button>
+            ))}
+          </div>
+        </div>
+        {sep}
+        <div style={col}>
           <div style={groupLabel}>Tabel</div>
           <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) editor.chain().focus().deleteTable().run(); }}><Trash2 size={13} /> Hapus tabel</button>
         </div>
@@ -665,6 +722,13 @@ function TableGrip({ editor }) {
     </BubbleMenu>
   );
 }
+const CELL_SHADES = [
+  { v: null, label: "Tanpa warna" },
+  { v: "#FEE2E2", label: "Merah muda (mis. kontraindikasi)" },
+  { v: "#FEF3C7", label: "Kuning muda (mis. perhatian)" },
+  { v: "#D1FAE5", label: "Hijau muda (mis. aman)" },
+  { v: "#DBEAFE", label: "Biru muda (netral)" }
+];
 function extractYT(url) { if (!url) return ""; const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/); return m ? m[1] : ""; }
 
 /* ===== editor konten gaya Word (pengajar) ===== */
@@ -2017,7 +2081,8 @@ export default function App() {
         .mk-article .tableWrapper{overflow-x:auto;margin:0 0 16px;border-radius:10px;}
         .mk-article table{border-collapse:collapse;width:100%;table-layout:fixed;margin:0;}
         .mk-article th,.mk-article td{border:1px solid ${C.border};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;min-width:70px;}
-        .mk-article th{background:${C.bg};font-weight:700;color:${C.navy};}
+        .mk-article th:not([style*="background"]){background:${C.bg};}
+        .mk-article th{font-weight:700;color:${C.navy};}
         /* ---- tabel mode edit: resize handle & sel terpilih (class resmi dari prosemirror-tables) ---- */
         .mk-edit .column-resize-handle{position:absolute;right:-2px;top:0;bottom:0;width:4px;z-index:20;background-color:${C.blue};pointer-events:none;}
         .mk-edit.resize-cursor,.mk-edit .resize-cursor{cursor:col-resize;}
