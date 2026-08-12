@@ -1,5 +1,6 @@
 import React from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import { StarterKit } from "@tiptap/starter-kit";
 import { TextStyle, FontSize } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
@@ -8,6 +9,7 @@ import { TextAlign } from "@tiptap/extension-text-align";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import { Node, mergeAttributes } from "@tiptap/core";
+import * as storage from "./storage";
 
 /* ===== node kustom: video YouTube tersisip di dalam alur teks ===== */
 function YoutubeView({ node, updateAttributes, deleteNode }) {
@@ -24,7 +26,7 @@ function YoutubeView({ node, updateAttributes, deleteNode }) {
           onChange={(e) => updateAttributes({ caption: e.target.value })}
           style={{ width: "100%", marginTop: 6, fontSize: 12.5, color: "#66708A", border: "1px solid #E4EDF5", borderRadius: 8, padding: "6px 9px", boxSizing: "border-box", fontFamily: "inherit" }}
         />
-        <button type="button" onClick={deleteNode} title="Hapus video"
+        <button type="button" onClick={() => { if (window.confirm("Hapus video ini?")) deleteNode(); }} title="Hapus video"
           style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 6, border: "none", background: "rgba(0,0,0,.55)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>✕</button>
       </div>
     </NodeViewWrapper>
@@ -52,14 +54,40 @@ const YoutubeNode = Node.create({
 /* ===== gambar + caption yang bisa diformat (bold/warna/dll) seperti caption di bawah gambar Word ===== */
 function ImageFigureView({ node, updateAttributes, deleteNode }) {
   const { src, "data-key": dataKey } = node.attrs;
+  const isEmpty = node.textContent.length === 0;
+  const [replacing, setReplacing] = React.useState(false);
+  const changeImage = () => {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "image/*";
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      setReplacing(true);
+      try {
+        const key = await storage.uploadGambar(f, { prefix: "materi/" });
+        const url = await storage.gambarSignedUrl(key);
+        updateAttributes({ src: url, "data-key": key });
+      } catch (err) {
+        window.alert("Ganti gambar gagal.\n" + (err?.message || err));
+      } finally { setReplacing(false); }
+    };
+    input.click();
+  };
   return (
     <NodeViewWrapper style={{ margin: "6px 0 16px" }}>
-      <div style={{ position: "relative" }}>
-        <img src={src} data-key={dataKey || undefined} alt="" style={{ maxWidth: "100%", borderRadius: 14, display: "block", boxShadow: "0 4px 16px rgba(12,111,192,.1)" }} />
-        <button type="button" contentEditable={false} onClick={deleteNode} title="Hapus gambar"
-          style={{ position: "absolute", top: 8, right: 8, width: 26, height: 26, borderRadius: 7, border: "none", background: "rgba(0,0,0,.55)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+      <div style={{ position: "relative" }} className="mk-figure-hover">
+        <img src={src} data-key={dataKey || undefined} alt="" style={{ maxWidth: "100%", borderRadius: 14, display: "block", boxShadow: "0 4px 16px rgba(12,111,192,.1)", opacity: replacing ? 0.5 : 1 }} />
+        <div contentEditable={false} className="mk-figure-actions" style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6 }}>
+          <button type="button" onClick={changeImage} disabled={replacing} title="Ganti gambar"
+            style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "rgba(0,0,0,.55)", color: "#fff", cursor: replacing ? "default" : "pointer", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>{replacing ? "…" : "⟳"}</button>
+          <button type="button" onClick={() => { if (window.confirm("Hapus gambar ini?")) deleteNode(); }} title="Hapus gambar"
+            style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "rgba(0,0,0,.55)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+        </div>
       </div>
-      <NodeViewContent as="figcaption" style={{ marginTop: 7, fontSize: 12.5, color: "#66708A", textAlign: "center", minHeight: 18, outline: "none" }} data-placeholder="Keterangan gambar (opsional, bisa diformat)" />
+      <div style={{ position: "relative" }}>
+        {isEmpty && <span contentEditable={false} style={{ position: "absolute", left: 0, right: 0, top: 0, textAlign: "center", fontSize: 12.5, color: "#9AA5BD", pointerEvents: "none" }}>Keterangan gambar (opsional, bisa diformat)</span>}
+        <NodeViewContent as="figcaption" style={{ marginTop: 7, fontSize: 12.5, color: "#66708A", textAlign: "center", minHeight: 18, outline: "none" }} />
+      </div>
     </NodeViewWrapper>
   );
 }
@@ -117,3 +145,5 @@ export function useTiptapEditor(opts) {
 export function TiptapContent({ editor }) {
   return <EditorContent editor={editor} />;
 }
+
+export { BubbleMenu };

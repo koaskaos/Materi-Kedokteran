@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
-import { useTiptapEditor, TiptapContent, tiptapExtensions } from "./lib/editor";
+import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu } from "./lib/editor";
 import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink } from "lucide-react";
 
 /* ===== label istilah ===== */
@@ -530,6 +530,14 @@ function KeyedImages({ containerRef }) {
 /* ===== toolbar gaya Word (Tiptap) ===== */
 const FONT_SIZES = ["12", "14", "16", "18", "20", "24", "28", "32"];
 const TEXT_COLORS = ["#101828", "#118EEA", "#D0342C", "#16A34A", "#7C3AED", "#B8860B"];
+/* ===== indikator status simpan otomatis (saving/tersimpan/gagal) ===== */
+function SaveStatusBadge() {
+  const { saveStatus } = useApp();
+  if (saveStatus === "saving") return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: C.sub }}><span className="mk-spin" style={{ width: 10, height: 10, border: `2px solid ${C.border}`, borderTopColor: C.blue, borderRadius: "50%", display: "inline-block" }} /> Menyimpan…</span>;
+  if (saveStatus === "saved") return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: "#1B7A3D" }}><Check size={13} /> Tersimpan otomatis</span>;
+  if (saveStatus === "error") return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: C.danger }}>⚠ Gagal menyimpan — cek koneksi</span>;
+  return null;
+}
 function TbBtn({ onClick, active, disabled, title, children }) {
   return (
     <button type="button" title={title} disabled={disabled} onMouseDown={(e) => { e.preventDefault(); onClick(); }}
@@ -542,7 +550,6 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
   if (!editor) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
   const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
-  const inTable = editor.isActive("table");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: "sticky", top: 0, zIndex: 2 }}>
       {!compact && <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
@@ -590,17 +597,32 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
         if (id) editor.chain().focus().insertContent({ type: "youtube", attrs: { videoId: id, caption: "" } }).run();
       }}><Video size={14} /></TbBtn>
       <TbBtn title="Sisipkan tabel" onClick={onInsertTable}><TableIcon size={14} /></TbBtn>
-      {inTable && <>
-        {sep}
-        <TbBtn title="Tambah baris" onClick={() => editor.chain().focus().addRowAfter().run()}>+Baris</TbBtn>
-        <TbBtn title="Hapus baris" onClick={() => editor.chain().focus().deleteRow().run()}>−Baris</TbBtn>
-        <TbBtn title="Tambah kolom" onClick={() => editor.chain().focus().addColumnAfter().run()}>+Kolom</TbBtn>
-        <TbBtn title="Hapus kolom" onClick={() => editor.chain().focus().deleteColumn().run()}>−Kolom</TbBtn>
-        <TbBtn title="Hapus tabel" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} /></TbBtn>
-      </>}
       {sep}
       <TbBtn title="Bersihkan format" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>⨉</TbBtn>
     </div>
+  );
+}
+/* ===== kontrol tabel kontekstual: muncul nempel di tabel yang sedang di-edit (bukan toolbar atas) ===== */
+function TableGrip({ editor }) {
+  if (!editor) return null;
+  const btn = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 8, border: "none", background: "transparent", color: C.navy, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" };
+  const del = { ...btn, color: C.danger };
+  const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "4px 0" }} />;
+  return (
+    <BubbleMenu editor={editor} options={{ placement: "top", offset: 6 }}
+      shouldShow={({ editor: ed }) => ed.isEditable && ed.isActive("table")}>
+      <div style={{ display: "flex", alignItems: "center", background: C.white, border: `1px solid ${C.border}`, borderRadius: 11, boxShadow: "0 6px 20px rgba(12,30,60,.16)", padding: 3, gap: 1 }}>
+        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }}>↑ Baris</button>
+        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run(); }}>↓ Baris</button>
+        {sep}
+        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run(); }}>← Kolom</button>
+        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run(); }}>→ Kolom</button>
+        {sep}
+        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus baris ini?")) editor.chain().focus().deleteRow().run(); }}>Hapus baris</button>
+        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus kolom ini?")) editor.chain().focus().deleteColumn().run(); }}>Hapus kolom</button>
+        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini?")) editor.chain().focus().deleteTable().run(); }}><Trash2 size={13} /></button>
+      </div>
+    </BubbleMenu>
   );
 }
 function extractYT(url) { if (!url) return ""; const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/); return m ? m[1] : ""; }
@@ -670,8 +692,11 @@ function PageContentEditorReady({ node, initialHtml }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: preview ? C.blueTint : "#FEF3C7", color: preview ? C.navy : "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20 }}>
-          {preview ? <><Eye size={13} /> Pratinjau (tampilan pelajar)</> : <><Edit3 size={13} /> Mode edit</>}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: preview ? C.blueTint : "#FEF3C7", color: preview ? C.navy : "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20 }}>
+            {preview ? <><Eye size={13} /> Pratinjau (tampilan pelajar)</> : <><Edit3 size={13} /> Mode edit</>}
+          </div>
+          <SaveStatusBadge />
         </div>
         <button onClick={togglePreview} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.white, color: C.navy, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
           {preview ? <><Edit3 size={14} /> Kembali edit</> : <><Eye size={14} /> Pratinjau</>}
@@ -683,6 +708,7 @@ function PageContentEditorReady({ node, initialHtml }) {
         <>
           <input value={node.title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: -.4, border: "none", borderBottom: `2px solid ${C.border}`, outline: "none", padding: "4px 0 8px", marginBottom: 20, fontFamily: FONT, background: "transparent" }} />
           <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} />
+          <TableGrip editor={editor} />
           <div ref={bodyRef} style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "14px 16px", minHeight: 240, background: C.white }}>
             <TiptapContent editor={editor} />
           </div>
@@ -795,6 +821,7 @@ function MiniRichEditorReady({ initialHtml, onSave, placeholder, minHeight }) {
   return (
     <div>
       <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} compact />
+      <TableGrip editor={editor} />
       <div style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "10px 12px", minHeight, background: C.white }}>
         <TiptapContent editor={editor} />
       </div>
@@ -855,9 +882,9 @@ function QuizRichView({ html, prefix, bold }) {
   const [resolved, setResolved] = useState(html || "");
   useEffect(() => { let alive = true; resolveKeyedImages(html || "").then((h) => alive && setResolved(h)); return () => { alive = false; }; }, [html]);
   return (
-    <div ref={ref} className="mk-article" style={bold ? { fontSize: 15, fontWeight: 700, color: C.ink } : undefined}>
-      {prefix && <span>{prefix}</span>}
-      <span dangerouslySetInnerHTML={{ __html: sanitize(resolved) }} />
+    <div ref={ref} className="mk-article" style={bold ? { fontSize: 15, fontWeight: 700, color: C.ink, display: "flex", gap: 6 } : undefined}>
+      {prefix && <span style={{ flexShrink: 0 }}>{prefix}</span>}
+      <div style={{ minWidth: 0, flex: 1 }} dangerouslySetInnerHTML={{ __html: sanitize(resolved) }} />
       <KeyedImages containerRef={ref} />
     </div>
   );
@@ -874,7 +901,10 @@ function QuizEditor({ node }) {
   const ta = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 11px", fontSize: 14, color: C.ink, fontFamily: FONT, outline: "none", boxSizing: "border-box", background: C.bg };
   return (
     <div style={{ maxWidth: 760 }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, marginBottom: 14 }}><Edit3 size={13} /> Mode edit kuis</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20 }}><Edit3 size={13} /> Mode edit kuis</div>
+        <SaveStatusBadge />
+      </div>
       <input value={node.title} onChange={(e) => set({ title: e.target.value })} style={{ width: "100%", fontSize: 22, fontWeight: 800, color: C.navy, border: "none", borderBottom: `2px solid ${C.border}`, outline: "none", padding: "4px 0 8px", marginBottom: 20, fontFamily: FONT, background: "transparent" }} />
       {qs.map((q, i) => (
         <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 12, background: C.white }}>
@@ -916,7 +946,10 @@ function LinkResourceEditor({ node }) {
   const linkOk = /^https?:\/\//i.test(node.link || "");
   return (
     <div style={{ maxWidth: 560 }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, marginBottom: 14 }}><Edit3 size={13} /> Mode edit {label.toLowerCase()}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#FEF3C7", color: "#92600A", fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20 }}><Edit3 size={13} /> Mode edit {label.toLowerCase()}</div>
+        <SaveStatusBadge />
+      </div>
       <div style={{ marginBottom: 14 }}>
         <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 6, display: "block" }}>Judul {label.toLowerCase()}</label>
         <input value={node.title} onChange={(e) => set({ title: e.target.value })} placeholder={`Contoh: ${node.kind === "referensi" ? "Konsensus Epilepsi" : "Makalah kasus stroke"}`} style={{ ...inp, fontWeight: 700, fontSize: 16 }} />
@@ -1860,12 +1893,41 @@ export default function App() {
     return () => sub?.subscription?.unsubscribe();
   }, [bootstrap]);
 
-  // ---- Autosave konten (admin) ----
+  // ---- Autosave konten (admin), dengan draft lokal jika koneksi putus ----
+  const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
   useEffect(() => {
     if (role !== "pengajar" || !contentLoaded) return;
-    const t = setTimeout(() => { db.saveContent(data).catch((e) => console.error("save konten:", e)); }, 1200);
+    setSaveStatus("saving");
+    const t = setTimeout(() => {
+      db.saveContent(data)
+        .then(() => { setSaveStatus("saved"); try { localStorage.removeItem("mk-draft-pending"); } catch {} })
+        .catch((e) => {
+          console.error("save konten:", e);
+          setSaveStatus("error");
+          // simpan draft lokal biar perubahan gak hilang kalau koneksi putus; disinkronkan ulang otomatis saat konten berikutnya berubah & berhasil simpan
+          try { localStorage.setItem("mk-draft-pending", JSON.stringify({ data, savedAt: Date.now() })); } catch {}
+        });
+    }, 1200);
     return () => clearTimeout(t);
   }, [data, role, contentLoaded]);
+
+  // ---- Pulihkan draft lokal jika ada perubahan yang belum tersimpan ke server (mis. koneksi sempat putus) ----
+  useEffect(() => {
+    if (role !== "pengajar" || !contentLoaded) return;
+    try {
+      const raw = localStorage.getItem("mk-draft-pending");
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft?.data && Date.now() - (draft.savedAt || 0) < 24 * 60 * 60 * 1000) {
+        const ok = window.confirm("Ditemukan perubahan yang belum berhasil tersimpan ke server (kemungkinan koneksi sempat putus). Pulihkan perubahan itu sekarang?");
+        if (ok) setData(draft.data);
+        else localStorage.removeItem("mk-draft-pending");
+      } else {
+        localStorage.removeItem("mk-draft-pending");
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, contentLoaded]);
 
   if (booting) return <BootScreen />;
 
@@ -1886,7 +1948,7 @@ export default function App() {
   const addMember = async (m) => { await db.adminCreateMember({ ...m, amount: payment.jumlah }); setMembers(await db.listMembers().catch(() => members)); };
   const savePaymentFn = async (p) => { await db.savePayment(p); setPayment(p); };
 
-  const value = { data, setData, nav, setNav, role, mut, logout: doLogout, ask, demo: false, theme, toggleTheme, members, verifyMember, deleteMember, addMember, payment, savePayment: savePaymentFn, addMemberOpen, setAddMemberOpen };
+  const value = { data, setData, nav, setNav, role, mut, logout: doLogout, ask, demo: false, theme, toggleTheme, members, verifyMember, deleteMember, addMember, payment, savePayment: savePaymentFn, addMemberOpen, setAddMemberOpen, saveStatus };
 
   return (
     <Ctx.Provider value={value}>
@@ -1907,13 +1969,27 @@ export default function App() {
         .mk-article figure{margin:0 0 16px;}
         .mk-article figure img{margin-bottom:0;}
         .mk-article figcaption{font-size:12.5px;color:${C.sub};text-align:center;margin-top:7px;}
-        .mk-article table{border-collapse:collapse;width:100%;margin:0 0 16px;table-layout:fixed;}
-        .mk-article th,.mk-article td{border:1px solid ${C.border};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;}
-        .mk-article th{background:${C.bg};font-weight:700;color:${C.navy};}
         .mk-article a{color:${C.blue};}
+        /* ---- tabel: wrapper scroll horizontal (wajib di layar kecil) + border rapi ---- */
+        .mk-article .tableWrapper{overflow-x:auto;margin:0 0 16px;border-radius:10px;}
+        .mk-article table{border-collapse:collapse;width:100%;table-layout:fixed;margin:0;}
+        .mk-article th,.mk-article td{border:1px solid ${C.border};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;min-width:70px;}
+        .mk-article th{background:${C.bg};font-weight:700;color:${C.navy};}
+        /* ---- tabel mode edit: resize handle & sel terpilih (class resmi dari prosemirror-tables) ---- */
+        .mk-edit .column-resize-handle{position:absolute;right:-2px;top:0;bottom:0;width:4px;z-index:20;background-color:${C.blue};pointer-events:none;}
+        .mk-edit.resize-cursor,.mk-edit .resize-cursor{cursor:col-resize;}
+        .mk-edit .selectedCell{position:relative;}
+        .mk-edit .selectedCell:after{z-index:2;position:absolute;content:'';left:0;right:0;top:0;bottom:0;background:rgba(17,142,234,0.15);pointer-events:none;}
+        .mk-edit td,.mk-edit th{position:relative;}
         .mk-edit{min-height:220px;outline:none;}
-        .mk-edit p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:${C.sub};float:left;height:0;pointer-events:none;}
+        .mk-edit .is-empty::before,.mk-edit p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:${C.sub};float:left;height:0;pointer-events:none;}
+        .mk-edit figcaption.is-empty::before{float:none;}
         .mk-edit .ProseMirror{outline:none;}
+        .mk-figure-actions{opacity:0;transition:opacity .15s;}
+        .mk-figure-hover:hover .mk-figure-actions,.mk-figure-actions:focus-within{opacity:1;}
+        @media (hover:none){.mk-figure-actions{opacity:1;}}
+        @keyframes mk-spin{to{transform:rotate(360deg);}}
+        .mk-spin{animation:mk-spin .7s linear infinite;}
       `}</style>
       {isMobile ? <MobileShell /> : <DesktopShell />}
       <AskModal modal={modal} onClose={() => setModal(null)} />
