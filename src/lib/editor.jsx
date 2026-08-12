@@ -2,7 +2,7 @@ import React from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { StarterKit } from "@tiptap/starter-kit";
-import { TextStyle, FontSize } from "@tiptap/extension-text-style";
+import { TextStyle, FontSize, FontFamily } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import { Highlight } from "@tiptap/extension-highlight";
 import { TextAlign } from "@tiptap/extension-text-align";
@@ -85,7 +85,7 @@ function ImageFigureView({ node, updateAttributes, deleteNode }) {
         </div>
       </div>
       <div style={{ position: "relative" }}>
-        {isEmpty && <span contentEditable={false} style={{ position: "absolute", left: 0, right: 0, top: 0, textAlign: "center", fontSize: 12.5, color: "#9AA5BD", pointerEvents: "none" }}>Keterangan gambar (opsional, bisa diformat)</span>}
+        {isEmpty && <span contentEditable={false} style={{ position: "absolute", left: 0, right: 0, top: 0, textAlign: "center", fontSize: 12, color: "currentColor", opacity: 0.4, pointerEvents: "none" }}>Tulis keterangan gambar…</span>}
         <NodeViewContent as="figcaption" style={{ marginTop: 7, fontSize: 12.5, color: "#66708A", textAlign: "center", minHeight: 18, outline: "none" }} />
       </div>
     </NodeViewWrapper>
@@ -125,6 +125,7 @@ export function tiptapExtensions(placeholderText) {
     StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
     TextStyle,
     FontSize,
+    FontFamily,
     Color,
     Highlight.configure({ multicolor: true }),
     TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -132,7 +133,7 @@ export function tiptapExtensions(placeholderText) {
     ImageFigure,
     YoutubeNode,
     Placeholder.configure({
-      placeholder: ({ node }) => node.type.name === "imageFigure" ? "Keterangan gambar (opsional, bisa diformat)" : (placeholderText || "Tulis materi di sini... gunakan toolbar di atas untuk mengatur huruf, warna, poin, tabel, gambar, dan video."),
+      placeholder: ({ node }) => node.type.name === "imageFigure" ? "Tulis keterangan gambar…" : (placeholderText || "Mulai menulis…"),
       showOnlyCurrent: false
     })
   ];

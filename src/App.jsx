@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, createContext, useCont
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
 import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu } from "./lib/editor";
-import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink } from "lucide-react";
+import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 
 /* ===== label istilah ===== */
 const L = { book: "Buku", section: "Bagian", page: "Halaman" };
@@ -159,7 +159,7 @@ function mapChildren(pages, parentPath, fn) {
   return { ...pages, [h]: { ...node, children: mapChildren(node.children || {}, rest, fn) } };
 }
 
-function useMutations(data, setData, ask) {
+function useMutations(data, setData, ask, setNav) {
   const setSecPages = (nb, sk, fn) => setData((d) => ({ ...d, [nb]: { ...d[nb], sections: { ...d[nb].sections, [sk]: { ...d[nb].sections[sk], pages: fn(d[nb].sections[sk].pages) } } } }));
   return {
     addNotebook: async () => {
@@ -204,6 +204,8 @@ function useMutations(data, setData, ask) {
       const nb = nav.notebook || Object.keys(data)[0];
       if (!nb) return;
       const key = slug(name);
+      let targetSk = nav.section;
+      let targetPath = null;
       setData((d) => {
         const notebook = d[nb];
         let sections = { ...notebook.sections };
@@ -213,15 +215,19 @@ function useMutations(data, setData, ask) {
         const newNode = { title: name, code: "", color: r.color, cover: r.cover, contentHtml: "", children: {} };
         const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
         sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        targetSk = sk; targetPath = [...parentPath, key];
         return { ...d, [nb]: { ...notebook, sections } };
       });
+      if (setNav && targetPath) setNav({ notebook: nb, section: targetSk, path: targetPath, view: "materi" });
     },
     addSectionSmart: async (nav) => {
       const r = await ask.create(`${L.section} baru`);
       if (!r || !r.name) return;
       const nb = nav.notebook || Object.keys(data)[0];
       if (!nb) return;
-      setData((d) => ({ ...d, [nb]: { ...d[nb], sections: { ...d[nb].sections, [slug(r.name)]: { title: r.name, code: r.name.slice(0, 2).toUpperCase(), color: r.color, cover: r.cover, pages: {} } } } }));
+      const sk = slug(r.name);
+      setData((d) => ({ ...d, [nb]: { ...d[nb], sections: { ...d[nb].sections, [sk]: { title: r.name, code: r.name.slice(0, 2).toUpperCase(), color: r.color, cover: r.cover, pages: {} } } } }));
+      if (setNav) setNav({ notebook: nb, section: sk, path: [], view: "materi" });
     },
     addQuizSmart: async (nav) => {
       const r = await ask.create("Kuis baru", { withCover: false });
@@ -230,6 +236,8 @@ function useMutations(data, setData, ask) {
       const nb = nav.notebook || Object.keys(data)[0];
       if (!nb) return;
       const key = slug(name);
+      let targetSk = nav.section;
+      let targetPath = null;
       setData((d) => {
         const notebook = d[nb];
         let sections = { ...notebook.sections };
@@ -239,8 +247,10 @@ function useMutations(data, setData, ask) {
         const newNode = { kind: "quiz", title: name, color: r.color, questions: [{ q: "Tulis pertanyaan di sini?", options: ["Pilihan A", "Pilihan B", "Pilihan C"], answer: 0, reason: "" }], children: {} };
         const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
         sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        targetSk = sk; targetPath = [...parentPath, key];
         return { ...d, [nb]: { ...notebook, sections } };
       });
+      if (setNav && targetPath) setNav({ notebook: nb, section: targetSk, path: targetPath, view: "materi" });
     },
     addTugasSmart: async (nav) => {
       const r = await ask.create("Tugas baru", { withCover: false, placeholder: "Judul tugas" });
@@ -249,6 +259,8 @@ function useMutations(data, setData, ask) {
       const nb = nav.notebook || Object.keys(data)[0];
       if (!nb) return;
       const key = slug(name);
+      let targetSk = nav.section;
+      let targetPath = null;
       setData((d) => {
         const notebook = d[nb];
         let sections = { ...notebook.sections };
@@ -258,8 +270,10 @@ function useMutations(data, setData, ask) {
         const newNode = { kind: "tugas", title: name, color: r.color, link: "", children: {} };
         const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
         sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        targetSk = sk; targetPath = [...parentPath, key];
         return { ...d, [nb]: { ...notebook, sections } };
       });
+      if (setNav && targetPath) setNav({ notebook: nb, section: targetSk, path: targetPath, view: "materi" });
     },
     addReferensiSmart: async (nav) => {
       const r = await ask.create("Buku kedokteran baru", { withCover: false, placeholder: "Judul buku" });
@@ -268,6 +282,8 @@ function useMutations(data, setData, ask) {
       const nb = nav.notebook || Object.keys(data)[0];
       if (!nb) return;
       const key = slug(name);
+      let targetSk = nav.section;
+      let targetPath = null;
       setData((d) => {
         const notebook = d[nb];
         let sections = { ...notebook.sections };
@@ -277,8 +293,10 @@ function useMutations(data, setData, ask) {
         const newNode = { kind: "referensi", title: name, color: r.color, link: "", children: {} };
         const newPages = mapChildren(sections[sk].pages, parentPath, (m) => ({ ...m, [key]: newNode }));
         sections = { ...sections, [sk]: { ...sections[sk], pages: newPages } };
+        targetSk = sk; targetPath = [...parentPath, key];
         return { ...d, [nb]: { ...notebook, sections } };
       });
+      if (setNav && targetPath) setNav({ notebook: nb, section: targetSk, path: targetPath, view: "materi" });
     },
     renamePage: async (nb, sk, fullPath) => {
       const cur = (() => { let c = data[nb].sections[sk].pages, n = null; for (const k of fullPath) { n = c[k]; c = n.children || {}; } return n; })();
@@ -529,6 +547,11 @@ function KeyedImages({ containerRef }) {
 
 /* ===== toolbar gaya Word (Tiptap) ===== */
 const FONT_SIZES = ["12", "14", "16", "18", "20", "24", "28", "32"];
+const FONT_FAMILIES = [
+  { v: "", label: "Standar", css: FONT },
+  { v: "Georgia, 'Times New Roman', serif", label: "Serif (formal)", css: "Georgia, 'Times New Roman', serif" },
+  { v: "'Courier New', monospace", label: "Monospace (kode/angka)", css: "'Courier New', monospace" }
+];
 const TEXT_COLORS = ["#101828", "#118EEA", "#D0342C", "#16A34A", "#7C3AED", "#B8860B"];
 /* ===== indikator status simpan otomatis (saving/tersimpan/gagal) ===== */
 function SaveStatusBadge() {
@@ -550,18 +573,24 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
   if (!editor) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
   const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
+  const currentFamily = editor.getAttributes("textStyle").fontFamily || "";
+  const selStyle = { height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: "sticky", top: 0, zIndex: 2 }}>
       {!compact && <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
         onChange={(e) => { const v = e.target.value; if (v === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(v[1]) }).run(); }}
-        style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
+        style={selStyle}>
         <option value="p">Normal</option>
         <option value="h1">Judul 1</option>
         <option value="h2">Judul 2</option>
         <option value="h3">Judul 3</option>
       </select>}
-      <select value={currentSize} onChange={(e) => editor.chain().focus().setFontSize(e.target.value + "px").run()}
-        style={{ height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" }}>
+      <select value={currentFamily} title="Jenis huruf"
+        onChange={(e) => { const v = e.target.value; if (v) editor.chain().focus().setFontFamily(v).run(); else editor.chain().focus().unsetFontFamily().run(); }}
+        style={{ ...selStyle, maxWidth: compact ? 90 : 140 }}>
+        {FONT_FAMILIES.map((f) => <option key={f.v} value={f.v} style={{ fontFamily: f.css }}>{f.label}</option>)}
+      </select>
+      <select value={currentSize} title="Ukuran huruf" onChange={(e) => editor.chain().focus().setFontSize(e.target.value + "px").run()} style={selStyle}>
         {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
       {sep}
@@ -605,22 +634,33 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
 /* ===== kontrol tabel kontekstual: muncul nempel di tabel yang sedang di-edit (bukan toolbar atas) ===== */
 function TableGrip({ editor }) {
   if (!editor) return null;
-  const btn = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 8, border: "none", background: "transparent", color: C.navy, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap" };
+  const groupLabel = { fontSize: 10, fontWeight: 800, letterSpacing: .4, textTransform: "uppercase", color: C.sub, padding: "6px 10px 3px" };
+  const btn = { display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, border: "none", background: "transparent", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap", width: "100%", textAlign: "left" };
   const del = { ...btn, color: C.danger };
-  const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "4px 0" }} />;
+  const col = { display: "flex", flexDirection: "column" };
+  const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "6px 4px" }} />;
   return (
-    <BubbleMenu editor={editor} options={{ placement: "top", offset: 6 }}
+    <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}
       shouldShow={({ editor: ed }) => ed.isEditable && ed.isActive("table")}>
-      <div style={{ display: "flex", alignItems: "center", background: C.white, border: `1px solid ${C.border}`, borderRadius: 11, boxShadow: "0 6px 20px rgba(12,30,60,.16)", padding: 3, gap: 1 }}>
-        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }}>↑ Baris</button>
-        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run(); }}>↓ Baris</button>
+      <div style={{ display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6 }}>
+        <div style={col}>
+          <div style={groupLabel}>Baris</div>
+          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
+          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run(); }}><ArrowDownToLine size={14} color={C.blue} /> Tambah di bawah</button>
+          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus baris yang sedang dipilih?")) editor.chain().focus().deleteRow().run(); }}><Trash2 size={13} /> Hapus baris ini</button>
+        </div>
         {sep}
-        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run(); }}>← Kolom</button>
-        <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run(); }}>→ Kolom</button>
+        <div style={col}>
+          <div style={groupLabel}>Kolom</div>
+          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run(); }}><ArrowLeftToLine size={14} color={C.blue} /> Tambah di kiri</button>
+          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run(); }}><ArrowRightToLine size={14} color={C.blue} /> Tambah di kanan</button>
+          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus kolom yang sedang dipilih?")) editor.chain().focus().deleteColumn().run(); }}><Trash2 size={13} /> Hapus kolom ini</button>
+        </div>
         {sep}
-        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus baris ini?")) editor.chain().focus().deleteRow().run(); }}>Hapus baris</button>
-        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus kolom ini?")) editor.chain().focus().deleteColumn().run(); }}>Hapus kolom</button>
-        <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini?")) editor.chain().focus().deleteTable().run(); }}><Trash2 size={13} /></button>
+        <div style={col}>
+          <div style={groupLabel}>Tabel</div>
+          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) editor.chain().focus().deleteTable().run(); }}><Trash2 size={13} /> Hapus tabel</button>
+        </div>
       </div>
     </BubbleMenu>
   );
@@ -1308,7 +1348,8 @@ function MobileShell() {
   const onAdd = useAddFlow();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  useEffect(() => { setScrolled(false); }, [nav.notebook, nav.section, nav.path.join("/")]);
+  const scrollRef = useRef(null);
+  useEffect(() => { setScrolled(false); scrollRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [nav.notebook, nav.section, nav.path.join("/")]);
   const nb = nav.notebook ? data[nav.notebook] : null;
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
   const { node, container } = resolvePage(data, nav);
@@ -1335,7 +1376,7 @@ function MobileShell() {
       : { background: "transparent", color: "#fff", border: "none", padding: "8px 4px" };
     const backIconColor = scrolled ? (theme === "dark" ? "#EAF1FB" : C.navy) : "#fff";
     return (
-      <div onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 60)} style={{ height: demo ? "100%" : "100dvh", overflowY: "auto", WebkitOverflowScrolling: "touch", background: C.blue, fontFamily: FONT }}>
+      <div ref={scrollRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 60)} style={{ height: demo ? "100%" : "100dvh", overflowY: "auto", WebkitOverflowScrolling: "touch", background: C.blue, fontFamily: FONT }}>
         <div style={{ position: "sticky", top: 0, zIndex: 30, height: 0, overflow: "visible" }}>
           <button onClick={goBack} style={{ position: "absolute", top: 12, left: 14, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: FONT, fontSize: 14, fontWeight: 700, transition: "background .2s, color .2s, padding .2s", ...backSt }}><ArrowLeft size={18} color={backIconColor} /> Kembali</button>
         </div>
@@ -1386,7 +1427,7 @@ function MobileShell() {
         </div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", background: C.white, borderRadius: "24px 24px 0 0", padding: "22px 18px 40px", boxShadow: "0 -6px 24px rgba(12,111,192,0.18)" }}>
+      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", background: C.white, borderRadius: "24px 24px 0 0", padding: "22px 18px 40px", boxShadow: "0 -6px 24px rgba(12,111,192,0.18)" }}>
         {isPengajar && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, minHeight: 40 }}>
             {(nav.notebook || nav.view === "anggota") ? <h1 style={{ fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: -.4, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nav.view === "anggota" ? "Anggota" : bigTitle}</h1> : <div />}
@@ -1450,6 +1491,8 @@ function DesktopShell() {
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
   const { node, container } = resolvePage(data, nav);
   const inPage = !!(sec && node);
+  const mainRef = useRef(null);
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [nav.notebook, nav.section, nav.path.join("/")]);
 
   return (
     <div style={{ display: "flex", height: H, overflow: "hidden", background: C.bg, fontFamily: FONT }}>
@@ -1497,7 +1540,7 @@ function DesktopShell() {
         </aside>
       </div>
 
-      <main style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box" }}>
+      <main ref={mainRef} style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
           <div style={{ position: "sticky", top: 0, zIndex: 10, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "18px 40px 14px" }}>
             {!sidebarOpen ? (
@@ -1857,7 +1900,7 @@ export default function App() {
     color: (title) => new Promise((resolve) => setModal({ type: "color", title, resolve })),
     create: (title, opts = {}) => new Promise((resolve) => setModal({ type: "create", title, placeholder: opts.placeholder, withCover: opts.withCover, resolve }))
   };
-  const mut = useMutations(data, setData, ask);
+  const mut = useMutations(data, setData, ask, setNav);
 
   // ---- Boot: cek sesi + muat data ----
   const bootstrap = useCallback(async () => {
@@ -1982,7 +2025,7 @@ export default function App() {
         .mk-edit .selectedCell:after{z-index:2;position:absolute;content:'';left:0;right:0;top:0;bottom:0;background:rgba(17,142,234,0.15);pointer-events:none;}
         .mk-edit td,.mk-edit th{position:relative;}
         .mk-edit{min-height:220px;outline:none;}
-        .mk-edit .is-empty::before,.mk-edit p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:${C.sub};float:left;height:0;pointer-events:none;}
+        .mk-edit .is-empty::before,.mk-edit p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:${C.sub};opacity:0.55;font-weight:400;float:left;height:0;pointer-events:none;}
         .mk-edit figcaption.is-empty::before{float:none;}
         .mk-edit .ProseMirror{outline:none;}
         .mk-figure-actions{opacity:0;transition:opacity .15s;}
