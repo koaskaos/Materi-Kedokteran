@@ -552,7 +552,7 @@ const FONT_FAMILIES = [
   { v: "Georgia, 'Times New Roman', serif", label: "Serif (formal)", css: "Georgia, 'Times New Roman', serif" },
   { v: "'Courier New', monospace", label: "Monospace (kode/angka)", css: "'Courier New', monospace" }
 ];
-const TEXT_COLORS = ["#101828", "#118EEA", "#D0342C", "#16A34A", "#7C3AED", "#B8860B"];
+const TEXT_COLORS = ["var(--mk-ink)", "#118EEA", "#D0342C", "#16A34A", "#7C3AED", "#B8860B"];
 /* ===== indikator status simpan otomatis (saving/tersimpan/gagal) ===== */
 function SaveStatusBadge() {
   const { saveStatus } = useApp();
@@ -647,8 +647,8 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
       <TbBtn title="Coret" active={st.strike} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: "line-through" }}>S</span></TbBtn>
       {sep}
       <TbBtn title="Warna standar (ikut tema)" onClick={() => editor.chain().focus().unsetColor().run()}><Ban size={14} /></TbBtn>
-      {TEXT_COLORS.map((c) => (
-        <button key={c} type="button" title={"Warna teks " + c} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setColor(c).run(); }}
+      {TEXT_COLORS.map((c, i) => (
+        <button key={c} type="button" title={i === 0 ? "Warna teks utama (ikut tema)" : "Warna teks " + c} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setColor(c).run(); }}
           style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${C.white}`, boxShadow: `0 0 0 1px ${C.border}`, background: c, cursor: "pointer" }} />
       ))}
       <TbBtn title="Sorot kuning" active={st.highlight} onClick={() => editor.chain().focus().toggleHighlight({ color: "#FEF08A" }).run()}>
@@ -2069,6 +2069,7 @@ export default function App() {
   return (
     <Ctx.Provider value={value}>
       <style>{`
+        :root{--mk-ink:${C.ink};}
         .mk-card{transition:transform .12s ease, box-shadow .12s ease, background .12s ease;}
         .mk-card:active{transform:scale(0.985);}
         @media (hover:hover){.mk-card:hover{box-shadow:0 4px 16px rgba(12,30,60,0.10);}}
