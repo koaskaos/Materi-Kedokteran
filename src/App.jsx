@@ -78,8 +78,8 @@ const rupiah = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
 
 /* ===== tema: light & dark via proxy ===== */
 const PALETTES = {
-  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", cardBg: "#FFFFFF" },
-  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", cardBg: "#1E2A38" }
+  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", canvasDesktop: "#EAF1FA", cardBg: "#FFFFFF" },
+  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", canvasDesktop: "#0A1420", cardBg: "#1E2A38" }
 };
 let THEME = "light";
 const C = new Proxy({}, { get: (_, k) => PALETTES[THEME][k] });
@@ -384,14 +384,14 @@ function RowTools({ onRename, onDelete, onCover, onColor }) {
     </div>
   );
 }
-const toolBtn = () => ({ width: 36, height: 36, borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 });
+const toolBtn = () => ({ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 });
 
 /* ===== baris kartu mobile & desktop ===== */
 function AirRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
   const col = getCategoryColor(kind);
   return (
     <div className="mk-card" style={{ border: `1px solid ${C.border}`, borderLeft: `3px solid ${col.accent}`, borderRadius: 12, marginBottom: 10, background: C.cardBg, boxShadow: "0 1px 3px rgba(0,0,0,.06)", overflow: "hidden" }}>
-      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 13px", cursor: "pointer" }}>
+      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 13px", cursor: "pointer" }}>
         {cover ? <SignedImg src={cover} alt="" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
           : <div style={{ width: 42, height: 42, borderRadius: 10, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid, size: 18 })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -401,9 +401,9 @@ function AirRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
             {meta && <span style={{ fontSize: 12, color: C.sub }}>{meta}</span>}
           </div>
         </div>
-        <ChevronRight size={17} color={C.sub} />
+        {tools && <div style={{ flexShrink: 0 }}>{tools}</div>}
+        <ChevronRight size={17} color={C.sub} style={{ flexShrink: 0 }} />
       </div>
-      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 13px 12px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>{tools}</div>}
     </div>
   );
 }
@@ -421,9 +421,9 @@ function DeskRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) 
             {meta && <span style={{ fontSize: 12.5, color: C.sub }}>{meta}</span>}
           </div>
         </div>
-        <ChevronRight size={18} color={C.sub} />
+        {tools && <div style={{ flexShrink: 0 }}>{tools}</div>}
+        <ChevronRight size={18} color={C.sub} style={{ flexShrink: 0 }} />
       </div>
-      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 20px 14px", borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>{tools}</div>}
     </div>
   );
 }
@@ -1627,7 +1627,7 @@ function DesktopShell() {
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
   const { node, container } = resolvePage(data, nav);
   const inPage = !!(sec && node);
-  const mainBg = C.canvas;
+  const mainBg = C.canvasDesktop;
   const mainRef = useRef(null);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [nav.notebook, nav.section, nav.path.join("/")]);
 
