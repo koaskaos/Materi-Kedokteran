@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, createContext, useCont
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
 import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu } from "./lib/editor";
-import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, Ban } from "lucide-react";
 
 /* ===== label istilah ===== */
 const L = { book: "Buku", section: "Bagian", page: "Halaman" };
@@ -644,6 +644,7 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
       <TbBtn title="Garis bawah" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><span style={{ textDecoration: "underline" }}>U</span></TbBtn>
       <TbBtn title="Coret" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: "line-through" }}>S</span></TbBtn>
       {sep}
+      <TbBtn title="Warna standar (ikut tema)" onClick={() => editor.chain().focus().unsetColor().run()}><Ban size={14} /></TbBtn>
       {TEXT_COLORS.map((c) => (
         <button key={c} type="button" title={"Warna teks " + c} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setColor(c).run(); }}
           style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${C.white}`, boxShadow: `0 0 0 1px ${C.border}`, background: c, cursor: "pointer" }} />

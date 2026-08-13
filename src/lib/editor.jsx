@@ -170,7 +170,9 @@ export function tiptapExtensions(placeholderText) {
 }
 
 export function useTiptapEditor(opts) {
-  return useEditor(opts);
+  // shouldRerenderOnTransaction: wajib true, kalau tidak toolbar (Bold/Underline/dll) tidak update statusnya
+  // saat kursor berpindah atau saat memilih teks tanpa mengubah isi -- Tiptap v3 defaultnya off demi performa.
+  return useEditor({ shouldRerenderOnTransaction: true, ...opts });
 }
 
 export function TiptapContent({ editor }) {
