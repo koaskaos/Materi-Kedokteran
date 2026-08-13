@@ -616,8 +616,8 @@ function ListButton({ editor, kind }) {
   );
 }
 function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compact }) {
-  if (!editor) return null;
   const isMobile = useIsMobile();
+  if (!editor) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
   const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
   const currentFamily = editor.getAttributes("textStyle").fontFamily || "";
