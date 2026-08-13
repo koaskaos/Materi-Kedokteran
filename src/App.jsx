@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
 import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu } from "./lib/editor";
@@ -767,7 +767,7 @@ function PageContentEditorReady({ node, initialHtml }) {
   const bodyRef = useRef(null);
 
   const editor = useTiptapEditor({
-    extensions: tiptapExtensions(),
+    extensions: useMemo(() => tiptapExtensions(), []),
     content: initialHtml,
     editorProps: { attributes: { class: "mk-article mk-edit", style: `font-family:${FONT}` } }
   });
@@ -906,7 +906,7 @@ function MiniRichEditor({ html, onSave, placeholder, minHeight = 70 }) {
 function MiniRichEditorReady({ initialHtml, onSave, placeholder, minHeight }) {
   const [uploading, setUploading] = useState(false);
   const editor = useTiptapEditor({
-    extensions: tiptapExtensions(placeholder),
+    extensions: useMemo(() => tiptapExtensions(placeholder), []), // eslint-disable-line react-hooks/exhaustive-deps
     content: initialHtml,
     editorProps: { attributes: { class: "mk-article mk-edit", style: `font-family:${FONT}` } },
     onBlur: ({ editor: ed }) => onSave(htmlToStoredKeys(ed.getHTML()))
