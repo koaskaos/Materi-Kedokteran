@@ -78,7 +78,7 @@ const rupiah = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
 
 /* ===== tema: light & dark via proxy ===== */
 const PALETTES = {
-  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", canvasDesktop: "#6B9BD3", cardBg: "#FFFFFF" },
+  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", canvasDesktop: "#5E90CC", cardBg: "#FFFFFF" },
   dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", canvasDesktop: "#0A5EA3", cardBg: "#1E2A38" }
 };
 let THEME = "light";
@@ -1690,10 +1690,10 @@ function DesktopShell() {
               </div>
               <button onClick={toggleTheme} aria-label="Tema" style={{ width: 40, height: 40, borderRadius: "50%", background: C.white, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>{theme === "light" ? <Moon size={18} color={C.navy} /> : <Sun size={18} color={C.navy} />}</button>
               {role === "pengajar" && !inPage && nav.view !== "anggota" && (
-                <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 30, border: "none", background: C.blue, color: "#fff", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}><Plus size={16} color="#fff" /> Tambah</button>
+                <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 30, border: "none", background: C.white, color: C.canvasDesktop, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}><Plus size={16} color={C.canvasDesktop} /> Tambah</button>
               )}
               {role === "pengajar" && nav.view === "anggota" && (
-                <button onClick={() => setAddMemberOpen(true)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 30, border: "none", background: C.blue, color: "#fff", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}><Plus size={16} color="#fff" /> Tambah anggota</button>
+                <button onClick={() => setAddMemberOpen(true)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 30, border: "none", background: C.white, color: C.canvasDesktop, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}><Plus size={16} color={C.canvasDesktop} /> Tambah anggota</button>
               )}
             </div>
           </div>
