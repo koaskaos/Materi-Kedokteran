@@ -410,10 +410,10 @@ function AirRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
 function DeskRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
   const col = getCategoryColor(kind);
   return (
-    <div className="mk-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${col.accent}`, borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,.07)", overflow: "hidden" }}>
+    <div className="mk-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `5px solid ${col.solid}`, borderRadius: 14, boxShadow: "0 2px 6px rgba(12,30,60,.05)", overflow: "hidden" }}>
       <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 15, padding: "14px 20px", cursor: "pointer" }}>
         {cover ? <SignedImg src={cover} alt="" style={{ width: 48, height: 48, borderRadius: 11, objectFit: "cover", flexShrink: 0 }} />
-          : <div style={{ width: 48, height: 48, borderRadius: 11, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid, size: 20 })}</div>}
+          : <div style={{ width: 48, height: 48, borderRadius: 11, background: col.chip, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid, size: 20 })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, fontWeight: 600, color: C.ink, letterSpacing: -.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
@@ -1212,9 +1212,9 @@ function Crumb({ light }) {
       container = node.children || {};
     });
   }
-  const dim = light ? "rgba(255,255,255,0.72)" : C.sub;
-  const strong = light ? "#fff" : C.blue;
-  const chevronColor = light ? "rgba(255,255,255,0.6)" : C.sub;
+  const dim = light ? "rgba(255,255,255,0.72)" : C.body;
+  const strong = light ? "#fff" : C.ink;
+  const chevronColor = light ? "rgba(255,255,255,0.6)" : C.body;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: dim, marginBottom: 16, flexWrap: "wrap" }}>
       {items.map((it, i) => (
@@ -1593,7 +1593,7 @@ function MobileShell() {
 
 /* ===== DESKTOP ===== */
 function SideItem({ active, icon, label, onClick }) {
-  return <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 12px", borderRadius: 11, fontSize: 14, fontWeight: 600, color: active ? "#fff" : C.sub, background: active ? C.blue : "transparent", cursor: "pointer" }}>{React.cloneElement(icon, { color: active ? "#fff" : C.sub })}<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span></div>;
+  return <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 12px", borderRadius: 11, fontSize: 14, fontWeight: 600, color: active ? "#fff" : C.sub, background: active ? C.canvasDesktop : "transparent", cursor: "pointer" }}>{React.cloneElement(icon, { color: active ? "#fff" : C.sub })}<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span></div>;
 }
 /* pohon sub bab rekursif di sidebar (expand sepanjang path aktif) */
 function SideTree({ nb, sk, container, depth, basePath }) {
@@ -1607,7 +1607,7 @@ function SideTree({ nb, sk, container, depth, basePath }) {
         const kids = p.children || {};
         return (
           <div key={pk}>
-            <div onClick={() => setNav({ notebook: nb, section: sk, path: full })} style={{ display: "flex", alignItems: "center", gap: 8, padding: `7px 10px 7px ${10 + depth * 12}px`, borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? C.blue : C.sub, background: active ? C.blueTint : "transparent" }}>
+            <div onClick={() => setNav({ notebook: nb, section: sk, path: full })} style={{ display: "flex", alignItems: "center", gap: 8, padding: `7px 10px 7px ${10 + depth * 12}px`, borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? C.canvasDesktop : C.sub, background: active ? C.blueTint : "transparent" }}>
               <FileText size={13} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
             </div>
             {onPath && Object.keys(kids).length > 0 && <SideTree nb={nb} sk={sk} container={kids} depth={depth + 1} basePath={full} />}
@@ -1636,17 +1636,17 @@ function DesktopShell() {
         <aside style={{ width: 264, background: C.white, borderRight: `1px solid ${C.border}`, padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4, height: H, overflowY: "auto", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: C.blue, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo-blue.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>
-              <span style={{ fontWeight: 800, fontSize: 16, color: C.navy, letterSpacing: -.3 }}>Materi Belajar Kedokteran</span>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: C.canvasDesktop, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo-blue.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>
+              <span style={{ fontWeight: 800, fontSize: 16, color: C.canvasDesktop, letterSpacing: -.3 }}>Materi Belajar Kedokteran</span>
             </div>
             <button onClick={() => setSidebarOpen(false)} aria-label="Tutup menu" style={{ width: 28, height: 28, borderRadius: 8, background: C.bg, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><X size={16} color={C.sub} /></button>
           </div>
 
           {role === "pengajar" && !inPage && nav.view !== "anggota" && (
-            <button onClick={onAdd} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 11, border: "none", background: C.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 6 }}><Plus size={17} color="#fff" /> Tambah</button>
+            <button onClick={onAdd} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 11, border: "none", background: C.canvasDesktop, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 6 }}><Plus size={17} color="#fff" /> Tambah</button>
           )}
           {role === "pengajar" && nav.view === "anggota" && (
-            <button onClick={() => setAddMemberOpen(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 11, border: "none", background: C.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 6 }}><Plus size={17} color="#fff" /> Tambah anggota</button>
+            <button onClick={() => setAddMemberOpen(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 11, border: "none", background: C.canvasDesktop, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 6 }}><Plus size={17} color="#fff" /> Tambah anggota</button>
           )}
 
           <SideItem active={!nav.notebook && nav.view !== "anggota"} icon={<Home size={18} />} label="Beranda" onClick={() => setNav({ notebook: null, section: null, path: [], view: "materi" })} />
@@ -1659,7 +1659,7 @@ function DesktopShell() {
                 <div style={{ margin: "2px 0 4px 20px", paddingLeft: 8, borderLeft: `2px solid ${C.border}` }}>
                   {Object.entries(notebook.sections).map(([sk, s]) => (
                     <div key={sk}>
-                      <div onClick={() => setNav({ notebook: nbKey, section: sk, path: [] })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: nav.section === sk && !nav.path.length ? 700 : 600, color: nav.section === sk && !nav.path.length ? C.blue : C.sub, background: nav.section === sk && !nav.path.length ? C.blueTint : "transparent" }}>
+                      <div onClick={() => setNav({ notebook: nbKey, section: sk, path: [] })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: nav.section === sk && !nav.path.length ? 700 : 600, color: nav.section === sk && !nav.path.length ? C.canvasDesktop : C.sub, background: nav.section === sk && !nav.path.length ? C.blueTint : "transparent" }}>
                         <Layers size={14} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
                       </div>
                       {nav.section === sk && <SideTree nb={nbKey} sk={sk} container={s.pages} depth={1} basePath={[]} />}
@@ -1700,15 +1700,15 @@ function DesktopShell() {
 
           <div style={{ padding: "18px 40px 0" }}>
             {nav.view === "anggota" ? (
-              <><h1 style={{ ...h1Style(), color: "#fff" }}>Anggota</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>Verifikasi pembayaran dan kelola akses pelajar.</p><MembersView /></>
+              <><h1 style={{ ...h1Style(), color: "#fff" }}>Anggota</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.75)" }}>Verifikasi pembayaran dan kelola akses pelajar.</p><MembersView /></>
             ) : (
               <>
                 <Crumb light />
-                {!nb && <><h1 style={{ ...h1Style(), color: "#fff" }}>Materi belajar</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>Materi kedokteran tersusun per bidang studi.</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><NotebookRows Row={DeskRow} /></div></>}
-                {nb && !sec && <><h1 style={{ ...h1Style(), color: "#fff" }}>{nb.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
-                {sec && !node && <><h1 style={{ ...h1Style(), color: "#fff" }}>{sec.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
+                {!nb && <><h1 style={{ ...h1Style(), color: "#fff" }}>Materi belajar</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.75)" }}>Materi kedokteran tersusun per bidang studi.</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><NotebookRows Row={DeskRow} /></div></>}
+                {nb && !sec && <><h1 style={{ ...h1Style(), color: "#fff" }}>{nb.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.75)" }}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
+                {sec && !node && <><h1 style={{ ...h1Style(), color: "#fff" }}>{sec.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.75)" }}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
                 {sec && node && (
-                  <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.cardBg, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 8px 32px rgba(0,0,0,0.35)" : "0 8px 32px rgba(12,60,120,0.14)", border: `1px solid ${theme === "dark" ? C.border : "transparent"}` }}>
+                  <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.cardBg, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 4px 16px rgba(0,0,0,0.3)" : "0 2px 10px rgba(12,60,120,.06)", border: `1px solid ${C.border}` }}>
                     {role !== "pengajar" && <h1 style={{ ...h1Style(), fontSize: 25 }}>{node.title}</h1>}
                     <PageViewDesktop node={node} container={container} />
                   </div>
