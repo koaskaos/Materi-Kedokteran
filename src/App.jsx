@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
-import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu } from "./lib/editor";
+import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu, useToolbarState } from "./lib/editor";
 import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, Ban } from "lucide-react";
 
 /* ===== label istilah ===== */
@@ -572,7 +572,7 @@ function TbBtn({ onClick, active, disabled, title, children }) {
 /* ===== tombol daftar dengan varian: klik = gaya default, klik panah = pilih varian (seperti MS Word) ===== */
 const BULLET_VARIANTS = [{ v: null, label: "Titik", css: "disc" }, { v: "circle", label: "Lingkaran", css: "circle" }, { v: "square", label: "Kotak", css: "square" }];
 const ORDERED_VARIANTS = [{ v: null, label: "1, 2, 3…" }, { v: "a", label: "a, b, c…" }, { v: "A", label: "A, B, C…" }, { v: "i", label: "i, ii, iii…" }, { v: "I", label: "I, II, III…" }];
-function ListButton({ editor, kind }) {
+function ListButton({ editor, kind, active }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -583,7 +583,6 @@ function ListButton({ editor, kind }) {
   }, [open]);
   if (!editor) return null;
   const isBullet = kind === "bullet";
-  const active = editor.isActive(isBullet ? "bulletList" : "orderedList");
   const Icon = isBullet ? List : ListOrdered;
   const variants = isBullet ? BULLET_VARIANTS : ORDERED_VARIANTS;
   const applyDefault = () => { if (isBullet) editor.chain().focus().toggleBulletList().run(); else editor.chain().focus().toggleOrderedList().run(); };
@@ -617,14 +616,15 @@ function ListButton({ editor, kind }) {
 }
 function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compact }) {
   const isMobile = useIsMobile();
-  if (!editor) return null;
+  const st = useToolbarState(editor);
+  if (!editor || !st) return null;
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
-  const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
-  const currentFamily = editor.getAttributes("textStyle").fontFamily || "";
+  const currentSize = st.fontSize?.replace("px", "") || "14";
+  const currentFamily = st.fontFamily || "";
   const selStyle = { height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: isMobile ? "static" : "sticky", top: 0, zIndex: 2 }}>
-      {!compact && <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
+      {!compact && <select value={st.headingLevel ? `h${st.headingLevel}` : "p"}
         onChange={(e) => { const v = e.target.value; if (v === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(v[1]) }).run(); }}
         style={selStyle}>
         <option value="p">Normal</option>
@@ -641,26 +641,26 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
         {FONT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
       {sep}
-      <TbBtn title="Tebal" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>B</TbBtn>
-      <TbBtn title="Miring" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><span style={{ fontStyle: "italic" }}>I</span></TbBtn>
-      <TbBtn title="Garis bawah" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><span style={{ textDecoration: "underline" }}>U</span></TbBtn>
-      <TbBtn title="Coret" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: "line-through" }}>S</span></TbBtn>
+      <TbBtn title="Tebal" active={st.bold} onClick={() => editor.chain().focus().toggleBold().run()}>B</TbBtn>
+      <TbBtn title="Miring" active={st.italic} onClick={() => editor.chain().focus().toggleItalic().run()}><span style={{ fontStyle: "italic" }}>I</span></TbBtn>
+      <TbBtn title="Garis bawah" active={st.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}><span style={{ textDecoration: "underline" }}>U</span></TbBtn>
+      <TbBtn title="Coret" active={st.strike} onClick={() => editor.chain().focus().toggleStrike().run()}><span style={{ textDecoration: "line-through" }}>S</span></TbBtn>
       {sep}
       <TbBtn title="Warna standar (ikut tema)" onClick={() => editor.chain().focus().unsetColor().run()}><Ban size={14} /></TbBtn>
       {TEXT_COLORS.map((c) => (
         <button key={c} type="button" title={"Warna teks " + c} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setColor(c).run(); }}
           style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${C.white}`, boxShadow: `0 0 0 1px ${C.border}`, background: c, cursor: "pointer" }} />
       ))}
-      <TbBtn title="Sorot kuning" active={editor.isActive("highlight")} onClick={() => editor.chain().focus().toggleHighlight({ color: "#FEF08A" }).run()}>
+      <TbBtn title="Sorot kuning" active={st.highlight} onClick={() => editor.chain().focus().toggleHighlight({ color: "#FEF08A" }).run()}>
         <span style={{ background: "#FEF08A", padding: "0 3px", borderRadius: 3 }}>H</span>
       </TbBtn>
       {sep}
-      <TbBtn title="Rata kiri" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}><AlignLeft size={14} /></TbBtn>
-      <TbBtn title="Rata tengah" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter size={14} /></TbBtn>
-      <TbBtn title="Rata kanan" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight size={14} /></TbBtn>
+      <TbBtn title="Rata kiri" active={st.alignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()}><AlignLeft size={14} /></TbBtn>
+      <TbBtn title="Rata tengah" active={st.alignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()}><AlignCenter size={14} /></TbBtn>
+      <TbBtn title="Rata kanan" active={st.alignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()}><AlignRight size={14} /></TbBtn>
       {sep}
-      <ListButton editor={editor} kind="bullet" />
-      <ListButton editor={editor} kind="ordered" />
+      <ListButton editor={editor} kind="bullet" active={st.bulletList} />
+      <ListButton editor={editor} kind="ordered" active={st.orderedList} />
       <TbBtn title="Kurangi indentasi" onClick={() => editor.chain().focus().liftListItem("listItem").run()}><Outdent size={14} /></TbBtn>
       <TbBtn title="Tambah indentasi" onClick={() => editor.chain().focus().sinkListItem("listItem").run()}><Indent size={14} /></TbBtn>
       {sep}

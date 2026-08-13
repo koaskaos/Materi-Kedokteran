@@ -1,5 +1,5 @@
 import React from "react";
-import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
+import { useEditor, useEditorState, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { StarterKit } from "@tiptap/starter-kit";
 import { TextStyle, FontSize, FontFamily } from "@tiptap/extension-text-style";
@@ -170,9 +170,32 @@ export function tiptapExtensions(placeholderText) {
 }
 
 export function useTiptapEditor(opts) {
-  // shouldRerenderOnTransaction: wajib true, kalau tidak toolbar (Bold/Underline/dll) tidak update statusnya
-  // saat kursor berpindah atau saat memilih teks tanpa mengubah isi -- Tiptap v3 defaultnya off demi performa.
-  return useEditor({ shouldRerenderOnTransaction: true, ...opts });
+  return useEditor(opts);
+}
+
+export function useToolbarState(editor) {
+  return useEditorState({
+    editor,
+    selector: ({ editor: ed }) => {
+      if (!ed) return null;
+      return {
+        bold: ed.isActive("bold"),
+        italic: ed.isActive("italic"),
+        underline: ed.isActive("underline"),
+        strike: ed.isActive("strike"),
+        highlight: ed.isActive("highlight"),
+        alignLeft: ed.isActive({ textAlign: "left" }),
+        alignCenter: ed.isActive({ textAlign: "center" }),
+        alignRight: ed.isActive({ textAlign: "right" }),
+        bulletList: ed.isActive("bulletList"),
+        orderedList: ed.isActive("orderedList"),
+        table: ed.isActive("table"),
+        headingLevel: ed.getAttributes("heading").level || null,
+        fontSize: ed.getAttributes("textStyle").fontSize || null,
+        fontFamily: ed.getAttributes("textStyle").fontFamily || null
+      };
+    }
+  });
 }
 
 export function TiptapContent({ editor }) {
