@@ -581,6 +581,7 @@ function ListButton({ editor, kind }) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
+  if (!editor) return null;
   const isBullet = kind === "bullet";
   const active = editor.isActive(isBullet ? "bulletList" : "orderedList");
   const Icon = isBullet ? List : ListOrdered;
@@ -688,7 +689,7 @@ function TableGrip({ editor }) {
   const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "6px 4px" }} />;
   return (
     <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}
-      shouldShow={({ editor: ed }) => ed.isEditable && ed.isActive("table")}>
+      shouldShow={({ editor: ed }) => !!ed && !ed.isDestroyed && ed.isEditable && ed.isActive("table")}>
       <div style={{ display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6, maxWidth: "min(92vw, 520px)", overflowX: "auto", boxSizing: "border-box" }}>
         <div style={col}>
           <div style={groupLabel}>Baris</div>
@@ -1557,6 +1558,7 @@ function DesktopShell() {
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
   const { node, container } = resolvePage(data, nav);
   const inPage = !!(sec && node);
+  const mainBg = inPage ? PALETTES[theme].canvas : C.bg;
   const mainRef = useRef(null);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [nav.notebook, nav.section, nav.path.join("/")]);
 
@@ -1606,9 +1608,9 @@ function DesktopShell() {
         </aside>
       </div>
 
-      <main ref={mainRef} style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box", background: (sec && node) ? PALETTES[theme].canvas : C.bg }}>
+      <main ref={mainRef} style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box", background: mainBg }}>
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
-          <div style={{ position: "sticky", top: 0, zIndex: 10, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "18px 40px 14px" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, background: mainBg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "18px 40px 14px" }}>
             {!sidebarOpen ? (
               <button onClick={() => setSidebarOpen(true)} aria-label="Buka menu" style={{ width: 40, height: 40, borderRadius: 11, background: C.white, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><Menu size={19} color={C.navy} /></button>
             ) : <div />}
