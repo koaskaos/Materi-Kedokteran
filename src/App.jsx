@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 import * as db from "./lib/db";
 import * as storage from "./lib/storage";
-import { useTiptapEditor, TiptapContent, tiptapExtensions, BubbleMenu, useToolbarState } from "./lib/editor";
-import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Outdent, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, Ban } from "lucide-react";
+import { useTiptapEditor, TiptapContent, tiptapExtensions, useToolbarState } from "./lib/editor";
+import { ChevronRight, ChevronDown, FileText, BookOpen, Search, Home, PlayCircle, ArrowLeft, Layers, LogOut, Menu, X, Lock, Edit3, ArrowUp, ArrowDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ListOrdered, Indent, List, Star, Image as ImageIcon, Video, Upload, Save, Check, Plus, Pencil, Palette, Sun, Moon, Mail, ListChecks, Users, Wallet, CheckCircle2, Clock, Eye, ShieldCheck, GraduationCap, UserCog, Copy, Table as TableIcon, FileUp, Library, ExternalLink, ArrowUpToLine, ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, Ban } from "lucide-react";
 
 /* ===== label istilah ===== */
 const L = { book: "Buku", section: "Bagian", page: "Halaman" };
@@ -77,8 +78,8 @@ const rupiah = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
 
 /* ===== tema: light & dark via proxy ===== */
 const PALETTES = {
-  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#DCEBFA" },
-  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420" }
+  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", cardBg: "#FFFFFF" },
+  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", cardBg: "#1E2A38" }
 };
 let THEME = "light";
 const C = new Proxy({}, { get: (_, k) => PALETTES[THEME][k] });
@@ -121,6 +122,28 @@ const CARD_COLORS_DARK = {
 const getColor = (key) => {
   const table = THEME === "dark" ? CARD_COLORS_DARK : CARD_COLORS_LIGHT;
   return (key && table[key]) ? table[key] : { tint: C.white, chip: C.blueTint, solid: C.blue };
+};
+
+/* ===== warna kategori card (otomatis berdasarkan jenis, bukan pilihan bebas) ===== */
+const CATEGORY_COLORS_LIGHT = {
+  notebook:  { accent: "#7F77DD", chip: "#EEEDFE", solid: "#534AB7" }, // Buku - ungu
+  section:   { accent: "#378ADD", chip: "#E6F1FB", solid: "#185FA5" }, // Bagian - biru
+  page:      { accent: "#888780", chip: "#F1EFE8", solid: "#5F5E5A" }, // Halaman - abu netral
+  quiz:      { accent: "#639922", chip: "#EAF3DE", solid: "#3B6D11" }, // Kuis - hijau
+  tugas:     { accent: "#EF9F27", chip: "#FAEEDA", solid: "#854F0B" }, // Tugas - amber
+  referensi: { accent: "#D4537E", chip: "#FBEAF0", solid: "#993556" }  // Buku kedokteran - pink
+};
+const CATEGORY_COLORS_DARK = {
+  notebook:  { accent: "#AFA9EC", chip: "#3C3489", solid: "#CECBF6" },
+  section:   { accent: "#85B7EB", chip: "#0C447C", solid: "#B5D4F4" },
+  page:      { accent: "#B4B2A9", chip: "#444441", solid: "#D3D1C7" },
+  quiz:      { accent: "#97C459", chip: "#27500A", solid: "#C0DD97" },
+  tugas:     { accent: "#EF9F27", chip: "#633806", solid: "#FAC775" },
+  referensi: { accent: "#ED93B1", chip: "#72243E", solid: "#F4C0D1" }
+};
+const getCategoryColor = (kind) => {
+  const table = THEME === "dark" ? CATEGORY_COLORS_DARK : CATEGORY_COLORS_LIGHT;
+  return table[kind] || table.page;
 };
 
 const Ctx = createContext(null);
@@ -364,43 +387,43 @@ function RowTools({ onRename, onDelete, onCover, onColor }) {
 const toolBtn = () => ({ width: 36, height: 36, borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 });
 
 /* ===== baris kartu mobile & desktop ===== */
-function AirRow({ icon, cover, color, typeLabel, title, meta, onClick, tools }) {
-  const col = getColor(color);
+function AirRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
+  const col = getCategoryColor(kind);
   return (
-    <div className="mk-card" style={{ border: `1px solid ${col.chip}`, borderRadius: 14, marginBottom: 10, background: col.tint, overflow: "hidden" }}>
-      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 13px", cursor: "pointer" }}>
-        {cover ? <SignedImg src={cover} alt="" style={{ width: 46, height: 46, borderRadius: 11, objectFit: "cover", flexShrink: 0 }} />
-          : <div style={{ width: 46, height: 46, borderRadius: 11, background: col.chip, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid })}</div>}
+    <div className="mk-card" style={{ border: `1px solid ${C.border}`, borderLeft: `3px solid ${col.accent}`, borderRadius: 12, marginBottom: 10, background: C.cardBg, boxShadow: "0 1px 3px rgba(0,0,0,.06)", overflow: "hidden" }}>
+      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 13px", cursor: "pointer" }}>
+        {cover ? <SignedImg src={cover} alt="" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+          : <div style={{ width: 42, height: 42, borderRadius: 10, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid, size: 18 })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 3 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: col.solid, background: col.chip, padding: "2px 8px", borderRadius: 6 }}>{typeLabel}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: col.solid, background: col.chip, padding: "2px 8px", borderRadius: 5 }}>{typeLabel}</span>
             {meta && <span style={{ fontSize: 12, color: C.sub }}>{meta}</span>}
           </div>
         </div>
         <ChevronRight size={17} color={C.sub} />
       </div>
-      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 13px 12px", borderTop: `1px solid ${col.chip}`, paddingTop: 10 }}>{tools}</div>}
+      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 13px 12px", borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>{tools}</div>}
     </div>
   );
 }
-function DeskRow({ icon, cover, color, typeLabel, title, meta, onClick, tools }) {
-  const col = getColor(color);
+function DeskRow({ icon, cover, kind, typeLabel, title, meta, onClick, tools }) {
+  const col = getCategoryColor(kind);
   return (
-    <div className="mk-card" style={{ background: col.tint, border: `1px solid ${col.chip}`, borderRadius: 16, boxShadow: "0 2px 10px rgba(12,111,192,.05)", overflow: "hidden" }}>
-      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 15, padding: "15px 20px", cursor: "pointer" }}>
-        {cover ? <SignedImg src={cover} alt="" style={{ width: 56, height: 56, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
-          : <div style={{ width: 56, height: 56, borderRadius: 13, background: col.chip, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid })}</div>}
+    <div className="mk-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `3px solid ${col.accent}`, borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,.07)", overflow: "hidden" }}>
+      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 15, padding: "14px 20px", cursor: "pointer" }}>
+        {cover ? <SignedImg src={cover} alt="" style={{ width: 48, height: 48, borderRadius: 11, objectFit: "cover", flexShrink: 0 }} />
+          : <div style={{ width: 48, height: 48, borderRadius: 11, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{React.cloneElement(icon, { color: col.solid, size: 20 })}</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 3 }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: C.navy, letterSpacing: -.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: col.solid, background: col.chip, padding: "3px 9px", borderRadius: 6, flexShrink: 0 }}>{typeLabel}</span>
+          <div style={{ fontSize: 15.5, fontWeight: 600, color: C.ink, letterSpacing: -.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: col.solid, background: col.chip, padding: "2px 8px", borderRadius: 5, flexShrink: 0 }}>{typeLabel}</span>
+            {meta && <span style={{ fontSize: 12.5, color: C.sub }}>{meta}</span>}
           </div>
-          {meta && <div style={{ fontSize: 13, color: C.sub }}>{meta}</div>}
         </div>
         <ChevronRight size={18} color={C.sub} />
       </div>
-      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 20px 14px", borderTop: `1px solid ${col.chip}`, paddingTop: 12 }}>{tools}</div>}
+      {tools && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, padding: "0 20px 14px", borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>{tools}</div>}
     </div>
   );
 }
@@ -546,7 +569,7 @@ function KeyedImages({ containerRef }) {
 }
 
 /* ===== toolbar gaya Word (Tiptap) ===== */
-const FONT_SIZES = ["12", "14", "16", "18", "20", "24", "28", "32"];
+const FONT_SIZES = Array.from({ length: 50 }, (_, i) => String(i + 1));
 const FONT_FAMILIES = [
   { v: "", label: "Standar", css: FONT },
   { v: "Georgia, 'Times New Roman', serif", label: "Serif (formal)", css: "Georgia, 'Times New Roman', serif" },
@@ -661,8 +684,7 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
       {sep}
       <ListButton editor={editor} kind="bullet" active={st.bulletList} />
       <ListButton editor={editor} kind="ordered" active={st.orderedList} />
-      <TbBtn title="Kurangi indentasi" onClick={() => editor.chain().focus().liftListItem("listItem").run()}><Outdent size={14} /></TbBtn>
-      <TbBtn title="Tambah indentasi" onClick={() => editor.chain().focus().sinkListItem("listItem").run()}><Indent size={14} /></TbBtn>
+      <TbBtn title="Tambah indentasi (geser poin ke dalam)" onClick={() => editor.chain().focus().sinkListItem("listItem").run()}><Indent size={14} /></TbBtn>
       {sep}
       <label style={{ display: "flex", alignItems: "center" }}>
         <TbBtn title="Sisipkan gambar" as="span" disabled={uploading} onClick={() => document.getElementById("mk-img-input")?.click()}>{uploading ? "…" : <ImageIcon size={14} />}</TbBtn>
@@ -680,49 +702,92 @@ function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compac
   );
 }
 /* ===== kontrol tabel kontekstual: muncul nempel di tabel yang sedang di-edit (bukan toolbar atas) ===== */
-function TableGrip({ editor }) {
+/* ===== kontrol tabel: tombol kecil nempel di pojok kanan-atas tiap tabel, klik untuk buka/tutup menu (tidak otomatis muncul) ===== */
+function TableToolbarPortals({ editor, containerRef }) {
+  const [wrappers, setWrappers] = useState([]);
+  useEffect(() => {
+    if (!editor) return;
+    const sync = () => {
+      const root = containerRef.current;
+      if (!root) return;
+      const found = Array.from(root.querySelectorAll(".tableWrapper"));
+      setWrappers((prev) => {
+        if (prev.length === found.length && prev.every((el, i) => el === found[i])) return prev;
+        return found;
+      });
+    };
+    sync();
+    editor.on("update", sync);
+    editor.on("selectionUpdate", sync);
+    return () => { editor.off("update", sync); editor.off("selectionUpdate", sync); };
+  }, [editor, containerRef]);
   if (!editor) return null;
+  return wrappers.map((wrapperEl, i) => createPortal(<TableCornerButton editor={editor} wrapperEl={wrapperEl} />, wrapperEl, i));
+}
+function TableCornerButton({ editor, wrapperEl }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  // pastikan klik/seleksi di dalam tabel ini terdeteksi Tiptap sebelum menjalankan perintah
+  const focusInTable = () => {
+    const cell = wrapperEl.querySelector("td, th");
+    if (!cell) return false;
+    const pos = editor.view.posAtDOM(cell, 0);
+    editor.chain().focus().setTextSelection(pos).run();
+    return true;
+  };
+  const run = (fn) => { if (focusInTable()) fn(); };
   const groupLabel = { fontSize: 10, fontWeight: 800, letterSpacing: .4, textTransform: "uppercase", color: C.sub, padding: "6px 10px 3px" };
   const btn = { display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, border: "none", background: "transparent", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap", width: "100%", textAlign: "left" };
   const del = { ...btn, color: C.danger };
   const col = { display: "flex", flexDirection: "column" };
   const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "6px 4px" }} />;
   return (
-    <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}
-      shouldShow={({ editor: ed }) => !!ed && !ed.isDestroyed && ed.isEditable && ed.isActive("table")}>
-      <div style={{ display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6, maxWidth: "min(92vw, 520px)", overflowX: "auto", boxSizing: "border-box" }}>
-        <div style={col}>
-          <div style={groupLabel}>Baris</div>
-          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
-          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run(); }}><ArrowDownToLine size={14} color={C.blue} /> Tambah di bawah</button>
-          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus baris yang sedang dipilih?")) editor.chain().focus().deleteRow().run(); }}><Trash2 size={13} /> Hapus baris ini</button>
-        </div>
-        {sep}
-        <div style={col}>
-          <div style={groupLabel}>Kolom</div>
-          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run(); }}><ArrowLeftToLine size={14} color={C.blue} /> Tambah di kiri</button>
-          <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run(); }}><ArrowRightToLine size={14} color={C.blue} /> Tambah di kanan</button>
-          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus kolom yang sedang dipilih?")) editor.chain().focus().deleteColumn().run(); }}><Trash2 size={13} /> Hapus kolom ini</button>
-        </div>
-        {sep}
-        <div style={col}>
-          <div style={groupLabel}>Warna sel</div>
-          <div style={{ display: "flex", gap: 6, padding: "4px 10px 8px" }}>
-            {CELL_SHADES.map((s) => (
-              <button key={s.v || "none"} title={s.label} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setCellAttribute("backgroundColor", s.v).run(); }}
-                style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${s.v ? "transparent" : C.border}`, background: s.v || C.white, cursor: "pointer", position: "relative" }}>
-                {!s.v && <X size={12} color={C.sub} style={{ position: "absolute", top: 3, left: 3 }} />}
-              </button>
-            ))}
+    <div ref={ref} contentEditable={false} style={{ position: "absolute", top: 6, right: 6, zIndex: 5 }}>
+      <button type="button" title="Pengaturan tabel" onClick={() => setOpen((o) => !o)}
+        style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border}`, background: open ? C.blueTint : C.white, color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(12,30,60,.12)" }}>
+        <TableIcon size={13} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: 30, right: 0, display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6, maxWidth: "min(88vw, 520px)", overflowX: "auto", boxSizing: "border-box" }}>
+          <div style={col}>
+            <div style={groupLabel}>Baris</div>
+            <button style={btn} onClick={() => run(() => editor.chain().focus().addRowBefore().run())}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
+            <button style={btn} onClick={() => run(() => editor.chain().focus().addRowAfter().run())}><ArrowDownToLine size={14} color={C.blue} /> Tambah di bawah</button>
+            <button style={del} onClick={() => { if (window.confirm("Hapus baris yang sedang dipilih?")) run(() => editor.chain().focus().deleteRow().run()); }}><Trash2 size={13} /> Hapus baris ini</button>
+          </div>
+          {sep}
+          <div style={col}>
+            <div style={groupLabel}>Kolom</div>
+            <button style={btn} onClick={() => run(() => editor.chain().focus().addColumnBefore().run())}><ArrowLeftToLine size={14} color={C.blue} /> Tambah di kiri</button>
+            <button style={btn} onClick={() => run(() => editor.chain().focus().addColumnAfter().run())}><ArrowRightToLine size={14} color={C.blue} /> Tambah di kanan</button>
+            <button style={del} onClick={() => { if (window.confirm("Hapus kolom yang sedang dipilih?")) run(() => editor.chain().focus().deleteColumn().run()); }}><Trash2 size={13} /> Hapus kolom ini</button>
+          </div>
+          {sep}
+          <div style={col}>
+            <div style={groupLabel}>Warna sel</div>
+            <div style={{ display: "flex", gap: 6, padding: "4px 10px 8px" }}>
+              {CELL_SHADES.map((s) => (
+                <button key={s.v || "none"} title={s.label} onClick={() => run(() => editor.chain().focus().setCellAttribute("backgroundColor", s.v).run())}
+                  style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${s.v ? "transparent" : C.border}`, background: s.v || C.white, cursor: "pointer", position: "relative" }}>
+                  {!s.v && <X size={12} color={C.sub} style={{ position: "absolute", top: 3, left: 3 }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {sep}
+          <div style={col}>
+            <div style={groupLabel}>Tabel</div>
+            <button style={del} onClick={() => { if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) run(() => editor.chain().focus().deleteTable().run()); }}><Trash2 size={13} /> Hapus tabel</button>
           </div>
         </div>
-        {sep}
-        <div style={col}>
-          <div style={groupLabel}>Tabel</div>
-          <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) editor.chain().focus().deleteTable().run(); }}><Trash2 size={13} /> Hapus tabel</button>
-        </div>
-      </div>
-    </BubbleMenu>
+      )}
+    </div>
   );
 }
 const CELL_SHADES = [
@@ -735,7 +800,7 @@ const CELL_SHADES = [
 function extractYT(url) { if (!url) return ""; const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/); return m ? m[1] : ""; }
 
 /* ===== editor konten gaya Word (pengajar) ===== */
-function PageContentEditor({ node }) {
+function PageContentEditor({ node, onPreviewChange }) {
   const { nav, mut } = useApp();
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -754,11 +819,11 @@ function PageContentEditor({ node }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav.notebook, nav.section, nav.path]);
 
-  return ready ? <PageContentEditorReady node={node} initialHtml={resolvedHtml.current} /> : (
+  return ready ? <PageContentEditorReady node={node} initialHtml={resolvedHtml.current} onPreviewChange={onPreviewChange} /> : (
     <div style={{ padding: 40, textAlign: "center", color: C.sub, fontSize: 13 }}>Memuat editor…</div>
   );
 }
-function PageContentEditorReady({ node, initialHtml }) {
+function PageContentEditorReady({ node, initialHtml, onPreviewChange }) {
   const { nav, mut } = useApp();
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -780,7 +845,7 @@ function PageContentEditorReady({ node, initialHtml }) {
   };
   const togglePreview = () => {
     if (!preview && editor) setPreviewHtml(editor.getHTML()); // ambil isi terkini (termasuk yang belum disimpan)
-    setPreview((p) => !p);
+    setPreview((p) => { onPreviewChange?.(!p); return !p; });
   };
   const insertImage = async (file) => {
     setUploading(true);
@@ -815,9 +880,9 @@ function PageContentEditorReady({ node, initialHtml }) {
         <>
           <input value={node.title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", fontSize: 22, fontWeight: 800, color: C.navy, letterSpacing: -.4, border: "none", borderBottom: `2px solid ${C.border}`, outline: "none", padding: "4px 0 8px", marginBottom: 20, fontFamily: FONT, background: "transparent" }} />
           <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} />
-          <TableGrip editor={editor} />
           <div ref={bodyRef} style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "14px 16px", minHeight: 240, background: C.white }}>
             <TiptapContent editor={editor} />
+            <TableToolbarPortals editor={editor} containerRef={bodyRef} />
           </div>
           <button onClick={doSave} style={{ marginTop: 18, padding: "12px 24px", borderRadius: 12, border: "none", background: saved ? "#16A34A" : C.blue, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 8 }}>{saved ? <><Check size={16} /> Tersimpan</> : <><Save size={16} /> Simpan materi</>}</button>
         </>
@@ -837,35 +902,36 @@ function EmptyState({ icon, title, hint }) {
   );
 }
 function NotebookRows({ Row }) {
-  const { data, setNav, role, mut, ask } = useApp();
+  const { data, setNav, role, mut } = useApp();
   if (Object.keys(data).length === 0) return <EmptyState icon={<BookOpen size={26} color={C.blue} />} title={`Belum ada ${L.book.toLowerCase()}`} hint={role === "pengajar" ? `Tekan Tambah untuk membuat ${L.book.toLowerCase()} pertama.` : "Materi belum tersedia."} />;
   return (
     <>
       {Object.entries(data).map(([key, nb]) => (
-        <Row key={key} icon={<BookOpen size={20} />} cover={nb.cover} color={nb.color} typeLabel={L.book} title={nb.title} meta={`${Object.keys(nb.sections).length} ${L.section.toLowerCase()}`}
-          tools={role === "pengajar" ? <RowTools onRename={() => mut.renameNotebook(key)} onDelete={() => mut.deleteNotebook(key)} onCover={(s) => mut.setNotebookCover(key, s)} onColor={async () => { const c = await ask.color("Pilih warna kartu"); if (c) mut.setNotebookColor(key, c); }} /> : null}
+        <Row key={key} icon={<BookOpen size={20} />} cover={nb.cover} kind="notebook" typeLabel={L.book} title={nb.title} meta={`${Object.keys(nb.sections).length} ${L.section.toLowerCase()}`}
+          tools={role === "pengajar" ? <RowTools onRename={() => mut.renameNotebook(key)} onDelete={() => mut.deleteNotebook(key)} onCover={(s) => mut.setNotebookCover(key, s)} /> : null}
           onClick={() => setNav({ notebook: key, section: null, path: [] })} />
       ))}
     </>
   );
 }
 function SectionRows({ nb, Row }) {
-  const { nav, setNav, role, mut, ask } = useApp();
+  const { nav, setNav, role, mut } = useApp();
   if (Object.keys(nb.sections).length === 0) return <EmptyState icon={<Layers size={26} color={C.blue} />} title={`Belum ada ${L.section.toLowerCase()}`} hint={role === "pengajar" ? `Tekan Tambah untuk membuat ${L.section.toLowerCase()}.` : "Bagian belum tersedia."} />;
   return (
     <>
       {Object.entries(nb.sections).map(([key, s]) => (
-        <Row key={key} icon={<Layers size={20} />} cover={s.cover} color={s.color} typeLabel={L.section} title={s.title} meta={`${Object.keys(s.pages).length} ${L.page.toLowerCase()}`}
-          tools={role === "pengajar" ? <RowTools onRename={() => mut.renameSection(nav.notebook, key)} onDelete={() => mut.deleteSection(nav.notebook, key)} onCover={(sr) => mut.setSectionCover(nav.notebook, key, sr)} onColor={async () => { const c = await ask.color("Pilih warna kartu"); if (c) mut.setSectionColor(nav.notebook, key, c); }} /> : null}
+        <Row key={key} icon={<Layers size={20} />} cover={s.cover} kind="section" typeLabel={L.section} title={s.title} meta={`${Object.keys(s.pages).length} ${L.page.toLowerCase()}`}
+          tools={role === "pengajar" ? <RowTools onRename={() => mut.renameSection(nav.notebook, key)} onDelete={() => mut.deleteSection(nav.notebook, key)} onCover={(sr) => mut.setSectionCover(nav.notebook, key, sr)} /> : null}
           onClick={() => setNav({ ...nav, section: key, path: [] })} />
       ))}
     </>
   );
 }
 /* daftar sub bab pada container di basePath */
-function PageRows({ container, basePath, Row }) {
-  const { nav, setNav, role, mut, ask } = useApp();
-  if (Object.keys(container).length === 0) return <EmptyState icon={<FileText size={26} color={C.blue} />} title={`Belum ada ${L.page.toLowerCase()}`} hint={role === "pengajar" ? `Tekan Tambah untuk membuat ${L.page.toLowerCase()} atau kuis.` : `${L.page} belum tersedia.`} />;
+function PageRows({ container, basePath, Row, readOnly }) {
+  const { nav, setNav, role, mut } = useApp();
+  const canEdit = role === "pengajar" && !readOnly;
+  if (Object.keys(container).length === 0) return <EmptyState icon={<FileText size={26} color={C.blue} />} title={`Belum ada ${L.page.toLowerCase()}`} hint={canEdit ? `Tekan Tambah untuk membuat ${L.page.toLowerCase()} atau kuis.` : `${L.page} belum tersedia.`} />;
   return (
     <>
       {Object.entries(container).map(([key, p]) => {
@@ -879,9 +945,9 @@ function PageRows({ container, basePath, Row }) {
         const typeLabel = isQuiz ? "Kuis" : isTugas ? "Tugas" : isReferensi ? "Buku kedokteran" : L.page;
         const meta = isQuiz ? `${(p.questions || []).length} soal` : isLinkKind ? (p.link ? "Ada link" : "Belum ada link") : (n ? `${n} ${L.page.toLowerCase()}` : "");
         return (
-          <Row key={key} icon={icon} cover={p.cover} color={p.color}
+          <Row key={key} icon={icon} cover={p.cover} kind={p.kind || "page"}
             typeLabel={typeLabel} title={p.title} meta={meta}
-            tools={role === "pengajar" ? <RowTools onRename={() => mut.renamePage(nav.notebook, nav.section, full)} onDelete={() => mut.deletePage(nav.notebook, nav.section, full, p.title)} onCover={(isQuiz || isLinkKind) ? null : ((s) => mut.setPageCover(nav.notebook, nav.section, full, s))} onColor={async () => { const c = await ask.color("Pilih warna kartu"); if (c) mut.setPageColor(nav.notebook, nav.section, full, c); }} /> : null}
+            tools={canEdit ? <RowTools onRename={() => mut.renamePage(nav.notebook, nav.section, full)} onDelete={() => mut.deletePage(nav.notebook, nav.section, full, p.title)} onCover={(isQuiz || isLinkKind) ? null : ((s) => mut.setPageCover(nav.notebook, nav.section, full, s))} /> : null}
             onClick={() => setNav({ ...nav, path: full })} />
         );
       })}
@@ -905,6 +971,7 @@ function MiniRichEditor({ html, onSave, placeholder, minHeight = 70 }) {
 }
 function MiniRichEditorReady({ initialHtml, onSave, placeholder, minHeight }) {
   const [uploading, setUploading] = useState(false);
+  const bodyRef = useRef(null);
   const editor = useTiptapEditor({
     extensions: useMemo(() => tiptapExtensions(placeholder), []), // eslint-disable-line react-hooks/exhaustive-deps
     content: initialHtml,
@@ -928,9 +995,9 @@ function MiniRichEditorReady({ initialHtml, onSave, placeholder, minHeight }) {
   return (
     <div>
       <EditorToolbar editor={editor} onInsertImage={insertImage} onInsertTable={insertTable} uploading={uploading} compact />
-      <TableGrip editor={editor} />
-      <div style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "10px 12px", minHeight, background: C.white }}>
+      <div ref={bodyRef} style={{ border: `1px solid ${C.border}`, borderRadius: "0 0 10px 10px", padding: "10px 12px", minHeight, background: C.white }}>
         <TiptapContent editor={editor} />
+        <TableToolbarPortals editor={editor} containerRef={bodyRef} />
       </div>
     </div>
   );
@@ -1107,21 +1174,23 @@ function AddInside() {
 
 /* tampilan sebuah sub bab: konten + daftar anak */
 function PageView({ node, container, Row }) {
-  const { role, nav } = useApp();
+  const { role, nav, theme } = useApp();
+  const [preview, setPreview] = useState(false);
   const isQuiz = node.kind === "quiz";
   const isLinkKind = node.kind === "tugas" || node.kind === "referensi";
   const hasChildren = Object.keys(container).length > 0;
+  const isPengajarEditing = role === "pengajar" && !preview;
   if (isQuiz) return role === "pengajar" ? <QuizEditor node={node} /> : <QuizRunner node={node} />;
   if (isLinkKind) return role === "pengajar" ? <LinkResourceEditor node={node} /> : <LinkResourceViewer node={node} />;
   return (
     <div>
-      {role === "pengajar" ? <PageContentEditor node={node} />
-        : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} mobile /></div>}
-      {(hasChildren || role === "pengajar") && (
+      {role === "pengajar" ? <PageContentEditor node={node} onPreviewChange={setPreview} />
+        : <div style={{ maxWidth: 680, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, padding: "22px 20px", boxShadow: theme === "dark" ? "0 4px 16px rgba(0,0,0,.3)" : "0 2px 12px rgba(12,60,120,.08)" }}><ArticleWithToc html={pageHtml(node)} mobile /></div>}
+      {(hasChildren || isPengajarEditing) && (
         <div style={{ marginTop: 28 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis, tugas & buku di halaman ini</div>
-          {role === "pengajar" && <AddInside />}
-          <PageRows container={container} basePath={nav.path} Row={Row} />
+          {isPengajarEditing && <AddInside />}
+          <PageRows container={container} basePath={nav.path} Row={Row} readOnly={preview} />
         </div>
       )}
     </div>
@@ -1391,11 +1460,11 @@ function SearchOverlay({ onClose }) {
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari materi, bagian, atau kuis" style={{ width: "100%", padding: "11px 12px 11px 38px", fontSize: 14, borderRadius: 12, border: "none", outline: "none", boxSizing: "border-box", color: C.ink, background: C.white, fontFamily: FONT }} />
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px 30px", background: C.bg }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px 30px", background: C.canvas }}>
         {!term && <div style={{ textAlign: "center", color: C.sub, fontSize: 14, marginTop: 40 }}>Ketik untuk mencari materi.</div>}
         {term && results.length === 0 && <div style={{ textAlign: "center", color: C.sub, fontSize: 14, marginTop: 40 }}>Tidak ada hasil untuk "{q}".</div>}
         {results.map((r, i) => (
-          <button key={i} onClick={() => { setNav(r.nav); onClose(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", marginBottom: 8, borderRadius: 12, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontFamily: FONT, textAlign: "left" }}>
+          <button key={i} onClick={() => { setNav(r.nav); onClose(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", marginBottom: 8, borderRadius: 12, border: `1px solid ${C.border}`, background: C.cardBg, cursor: "pointer", fontFamily: FONT, textAlign: "left" }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: C.blueTint, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{iconFor(r.type)}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</div>
@@ -1454,7 +1523,7 @@ function MobileShell() {
           <h1 style={{ color: "#fff", fontSize: 25, fontWeight: 800, lineHeight: 1.2, letterSpacing: -.5, margin: "0 0 8px" }}>{bigTitle}</h1>
           <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.5, margin: 0 }}>{subtitle}</p>
         </div>
-        <div style={{ background: C.white, borderRadius: "24px 24px 0 0", padding: "22px 18px 80px", minHeight: "55%" }}>
+        <div style={{ background: C.canvas, borderRadius: "24px 24px 0 0", padding: "22px 18px 80px", minHeight: "55%" }}>
           <PageView node={node} container={container} Row={AirRow} />
         </div>
       </div>
@@ -1558,7 +1627,7 @@ function DesktopShell() {
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
   const { node, container } = resolvePage(data, nav);
   const inPage = !!(sec && node);
-  const mainBg = inPage ? PALETTES[theme].canvas : C.bg;
+  const mainBg = C.canvas;
   const mainRef = useRef(null);
   useEffect(() => { mainRef.current?.scrollTo({ top: 0, behavior: "auto" }); }, [nav.notebook, nav.section, nav.path.join("/")]);
 
@@ -1640,7 +1709,7 @@ function DesktopShell() {
                 {nb && !sec && <><h1 style={h1Style()}>{nb.title}</h1><p style={pStyle()}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
                 {sec && !node && <><h1 style={h1Style()}>{sec.title}</h1><p style={pStyle()}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
                 {sec && node && (
-                  <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.white, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 8px 32px rgba(0,0,0,0.35)" : "0 8px 32px rgba(12,60,120,0.14)", border: `1px solid ${theme === "dark" ? C.border : "transparent"}` }}>
+                  <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.cardBg, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 8px 32px rgba(0,0,0,0.35)" : "0 8px 32px rgba(12,60,120,0.14)", border: `1px solid ${theme === "dark" ? C.border : "transparent"}` }}>
                     {role !== "pengajar" && <h1 style={{ ...h1Style(), fontSize: 25 }}>{node.title}</h1>}
                     <PageViewDesktop node={node} container={container} />
                   </div>
@@ -1658,19 +1727,21 @@ const pStyle = () => ({ fontSize: 14, color: C.sub, margin: "0 0 22px" });
 
 function PageViewDesktop({ node, container }) {
   const { role, nav } = useApp();
+  const [preview, setPreview] = useState(false);
   const isQuiz = node.kind === "quiz";
   const isLinkKind = node.kind === "tugas" || node.kind === "referensi";
   const hasChildren = Object.keys(container).length > 0;
+  const isPengajarEditing = role === "pengajar" && !preview;
   if (isQuiz) return role === "pengajar" ? <QuizEditor node={node} /> : <QuizRunner node={node} />;
   if (isLinkKind) return role === "pengajar" ? <LinkResourceEditor node={node} /> : <LinkResourceViewer node={node} />;
   return (
     <div>
-      {role === "pengajar" ? <PageContentEditor node={node} /> : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} /></div>}
-      {(hasChildren || role === "pengajar") && (
+      {role === "pengajar" ? <PageContentEditor node={node} onPreviewChange={setPreview} /> : <div style={{ maxWidth: 680 }}><ArticleWithToc html={pageHtml(node)} /></div>}
+      {(hasChildren || isPengajarEditing) && (
         <div style={{ marginTop: 30 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", color: C.sub, marginBottom: 12 }}>Kuis, tugas & buku di halaman ini</div>
-          {role === "pengajar" && <AddInside />}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={nav.path} Row={DeskRow} /></div>
+          {isPengajarEditing && <AddInside />}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={nav.path} Row={DeskRow} readOnly={preview} /></div>
         </div>
       )}
     </div>
@@ -1694,13 +1765,6 @@ function AskModal({ modal, onClose }) {
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 6, display: "block" }}>Nama</label>
             <input autoFocus value={cname} onChange={(e) => setCname(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && cname.trim()) { modal.resolve({ name: cname.trim(), color: ccolor, cover: ccover }); onClose(); } }} placeholder={modal.placeholder || "Tulis nama"} style={{ width: "100%", padding: "11px 13px", fontSize: 14, borderRadius: 11, border: `1px solid ${C.border}`, outline: "none", boxSizing: "border-box", color: C.ink, background: C.bg, fontFamily: FONT, marginBottom: 16 }} />
-            <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 8, display: "block" }}>Warna kartu</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 7, marginBottom: 16 }}>
-              {[["default", { tint: C.white, chip: C.border, solid: C.blue }], ...Object.keys(CARD_COLORS_LIGHT).map(k => [k, getColor(k)])].map(([key, col]) => {
-                const active = (key === "default" && !ccolor) || key === ccolor;
-                return <button key={key} onClick={() => setCcolor(key === "default" ? null : key)} aria-label={key} style={{ aspectRatio: "1", borderRadius: 8, border: active ? `2px solid ${C.blue}` : `2px solid ${col.chip}`, background: col.tint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 12, height: 12, borderRadius: "50%", background: col.solid }} /></button>;
-              })}
-            </div>
             {modal.withCover !== false && (
               <>
                 <label style={{ fontSize: 12, fontWeight: 700, color: C.sub, marginBottom: 8, display: "block" }}>Sampul (opsional)</label>
@@ -2088,9 +2152,10 @@ export default function App() {
         .mk-article figcaption{font-size:12.5px;color:${C.sub};text-align:center;margin-top:7px;}
         .mk-article a{color:${C.blue};}
         /* ---- tabel: wrapper scroll horizontal (wajib di layar kecil) + border rapi ---- */
-        .mk-article .tableWrapper{overflow-x:auto;margin:0 0 16px;border-radius:10px;}
+        .mk-article .tableWrapper{position:relative;overflow-x:auto;margin:0 0 16px;border-radius:10px;}
         .mk-article table{border-collapse:collapse;width:100%;table-layout:fixed;margin:0;}
-        .mk-article th,.mk-article td{border:1px solid ${C.border};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;min-width:70px;}
+        .mk-article th,.mk-article td{border:2px solid ${C.ink};padding:8px 10px;text-align:left;font-size:13px;vertical-align:top;min-width:70px;}
+        .mk-article table{border:2px solid ${C.ink};}
         .mk-article th:not([style*="background"]){background:${C.bg};}
         .mk-article th{font-weight:700;color:${C.navy};}
         /* ---- tabel mode edit: resize handle & sel terpilih (class resmi dari prosemirror-tables) ---- */
