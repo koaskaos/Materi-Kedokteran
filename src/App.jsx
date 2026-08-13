@@ -77,8 +77,8 @@ const rupiah = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
 
 /* ===== tema: light & dark via proxy ===== */
 const PALETTES = {
-  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54" },
-  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC" }
+  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#DCEBFA" },
+  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420" }
 };
 let THEME = "light";
 const C = new Proxy({}, { get: (_, k) => PALETTES[THEME][k] });
@@ -616,12 +616,13 @@ function ListButton({ editor, kind }) {
 }
 function EditorToolbar({ editor, onInsertImage, onInsertTable, uploading, compact }) {
   if (!editor) return null;
+  const isMobile = useIsMobile();
   const sep = <div style={{ width: 1, height: 20, background: C.border, margin: "0 4px" }} />;
   const currentSize = editor.getAttributes("textStyle").fontSize?.replace("px", "") || "14";
   const currentFamily = editor.getAttributes("textStyle").fontFamily || "";
   const selStyle = { height: 28, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12.5, color: C.ink, fontFamily: FONT, padding: "0 4px" };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: "sticky", top: 0, zIndex: 2 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", padding: "8px 9px", border: `1px solid ${C.border}`, borderBottom: "none", borderRadius: "10px 10px 0 0", background: C.bg, position: isMobile ? "static" : "sticky", top: 0, zIndex: 2 }}>
       {!compact && <select value={editor.getAttributes("heading").level ? `h${editor.getAttributes("heading").level}` : "p"}
         onChange={(e) => { const v = e.target.value; if (v === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(v[1]) }).run(); }}
         style={selStyle}>
@@ -688,7 +689,7 @@ function TableGrip({ editor }) {
   return (
     <BubbleMenu editor={editor} options={{ placement: "top", offset: 8 }}
       shouldShow={({ editor: ed }) => ed.isEditable && ed.isActive("table")}>
-      <div style={{ display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6, maxWidth: "min(92vw, 520px)", overflowX: "auto", boxSizing: "border-box" }}>
         <div style={col}>
           <div style={groupLabel}>Baris</div>
           <button style={btn} onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
@@ -1605,7 +1606,7 @@ function DesktopShell() {
         </aside>
       </div>
 
-      <main ref={mainRef} style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box" }}>
+      <main ref={mainRef} style={{ flex: 1, minWidth: 0, height: H, overflowY: "auto", padding: "0 0 60px", boxSizing: "border-box", background: (sec && node) ? PALETTES[theme].canvas : C.bg }}>
         <div style={{ maxWidth: 1040, margin: "0 auto" }}>
           <div style={{ position: "sticky", top: 0, zIndex: 10, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "18px 40px 14px" }}>
             {!sidebarOpen ? (
@@ -1636,7 +1637,12 @@ function DesktopShell() {
                 {!nb && <><h1 style={h1Style()}>Materi belajar</h1><p style={pStyle()}>Materi kedokteran tersusun per bidang studi.</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><NotebookRows Row={DeskRow} /></div></>}
                 {nb && !sec && <><h1 style={h1Style()}>{nb.title}</h1><p style={pStyle()}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
                 {sec && !node && <><h1 style={h1Style()}>{sec.title}</h1><p style={pStyle()}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
-                {sec && node && <div style={{ maxWidth: 820 }}>{role !== "pengajar" && <h1 style={{ ...h1Style(), fontSize: 25 }}>{node.title}</h1>}<PageViewDesktop node={node} container={container} /></div>}
+                {sec && node && (
+                  <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.white, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 8px 32px rgba(0,0,0,0.35)" : "0 8px 32px rgba(12,60,120,0.14)", border: `1px solid ${theme === "dark" ? C.border : "transparent"}` }}>
+                    {role !== "pengajar" && <h1 style={{ ...h1Style(), fontSize: 25 }}>{node.title}</h1>}
+                    <PageViewDesktop node={node} container={container} />
+                  </div>
+                )}
               </>
             )}
           </div>
