@@ -78,8 +78,8 @@ const rupiah = (n) => "Rp " + (n || 0).toLocaleString("id-ID");
 
 /* ===== tema: light & dark via proxy ===== */
 const PALETTES = {
-  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", canvasDesktop: "#EAF1FA", cardBg: "#FFFFFF" },
-  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", canvasDesktop: "#0A1420", cardBg: "#1E2A38" }
+  light: { navy: "#0C6FC0", navyDeep: "#0A5EA3", blue: "#118EEA", blueDeep: "#0C7BD0", blueTint: "#E7F3FD", ink: "#101828", sub: "#66708A", border: "#E4EDF5", bg: "#F3F8FD", white: "#FFFFFF", danger: "#D0342C", body: "#333B54", canvas: "#A9CCEE", canvasDesktop: "#6B9BD3", cardBg: "#FFFFFF" },
+  dark:  { navy: "#5AB0F5", navyDeep: "#3E93DA", blue: "#2E9BF5", blueDeep: "#2E9BF5", blueTint: "#13273D", ink: "#E7EEF5", sub: "#93A2B3", border: "#26323F", bg: "#0D1520", white: "#161F2B", danger: "#F0655C", body: "#C4D0DC", canvas: "#0A1420", canvasDesktop: "#0A5EA3", cardBg: "#1E2A38" }
 };
 let THEME = "light";
 const C = new Proxy({}, { get: (_, k) => PALETTES[THEME][k] });
@@ -733,15 +733,9 @@ function TableCornerButton({ editor, wrapperEl }) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
-  // pastikan klik/seleksi di dalam tabel ini terdeteksi Tiptap sebelum menjalankan perintah
-  const focusInTable = () => {
-    const cell = wrapperEl.querySelector("td, th");
-    if (!cell) return false;
-    const pos = editor.view.posAtDOM(cell, 0);
-    editor.chain().focus().setTextSelection(pos).run();
-    return true;
-  };
-  const run = (fn) => { if (focusInTable()) fn(); };
+  // Perintah dijalankan ke posisi/seleksi yang SEDANG AKTIF di editor (sel yang terakhir diklik/dipilih user).
+  // Tidak memaksa pindah ke sel pertama -- cukup pastikan fokus tetap di editor sebelum menjalankan command.
+  const run = (fn) => { editor.chain().focus().run(); fn(); };
   const groupLabel = { fontSize: 10, fontWeight: 800, letterSpacing: .4, textTransform: "uppercase", color: C.sub, padding: "6px 10px 3px" };
   const btn = { display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, border: "none", background: "transparent", color: C.navy, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT, whiteSpace: "nowrap", width: "100%", textAlign: "left" };
   const del = { ...btn, color: C.danger };
@@ -749,7 +743,7 @@ function TableCornerButton({ editor, wrapperEl }) {
   const sep = <div style={{ width: 1, alignSelf: "stretch", background: C.border, margin: "6px 4px" }} />;
   return (
     <div ref={ref} contentEditable={false} style={{ position: "absolute", top: 6, right: 6, zIndex: 5 }}>
-      <button type="button" title="Pengaturan tabel" onClick={() => setOpen((o) => !o)}
+      <button type="button" title="Pengaturan tabel" onMouseDown={(e) => { e.preventDefault(); setOpen((o) => !o); }}
         style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${C.border}`, background: open ? C.blueTint : C.white, color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(12,30,60,.12)" }}>
         <TableIcon size={13} />
       </button>
@@ -757,23 +751,23 @@ function TableCornerButton({ editor, wrapperEl }) {
         <div style={{ position: "absolute", top: 30, right: 0, display: "flex", alignItems: "flex-start", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(12,30,60,.18)", padding: 6, maxWidth: "min(88vw, 520px)", overflowX: "auto", boxSizing: "border-box" }}>
           <div style={col}>
             <div style={groupLabel}>Baris</div>
-            <button style={btn} onClick={() => run(() => editor.chain().focus().addRowBefore().run())}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
-            <button style={btn} onClick={() => run(() => editor.chain().focus().addRowAfter().run())}><ArrowDownToLine size={14} color={C.blue} /> Tambah di bawah</button>
-            <button style={del} onClick={() => { if (window.confirm("Hapus baris yang sedang dipilih?")) run(() => editor.chain().focus().deleteRow().run()); }}><Trash2 size={13} /> Hapus baris ini</button>
+            <button style={btn} onMouseDown={(e) => { e.preventDefault(); run(() => editor.chain().focus().addRowBefore().run()); }}><ArrowUpToLine size={14} color={C.blue} /> Tambah di atas</button>
+            <button style={btn} onMouseDown={(e) => { e.preventDefault(); run(() => editor.chain().focus().addRowAfter().run()); }}><ArrowDownToLine size={14} color={C.blue} /> Tambah di bawah</button>
+            <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus baris yang sedang dipilih?")) run(() => editor.chain().focus().deleteRow().run()); }}><Trash2 size={13} /> Hapus baris ini</button>
           </div>
           {sep}
           <div style={col}>
             <div style={groupLabel}>Kolom</div>
-            <button style={btn} onClick={() => run(() => editor.chain().focus().addColumnBefore().run())}><ArrowLeftToLine size={14} color={C.blue} /> Tambah di kiri</button>
-            <button style={btn} onClick={() => run(() => editor.chain().focus().addColumnAfter().run())}><ArrowRightToLine size={14} color={C.blue} /> Tambah di kanan</button>
-            <button style={del} onClick={() => { if (window.confirm("Hapus kolom yang sedang dipilih?")) run(() => editor.chain().focus().deleteColumn().run()); }}><Trash2 size={13} /> Hapus kolom ini</button>
+            <button style={btn} onMouseDown={(e) => { e.preventDefault(); run(() => editor.chain().focus().addColumnBefore().run()); }}><ArrowLeftToLine size={14} color={C.blue} /> Tambah di kiri</button>
+            <button style={btn} onMouseDown={(e) => { e.preventDefault(); run(() => editor.chain().focus().addColumnAfter().run()); }}><ArrowRightToLine size={14} color={C.blue} /> Tambah di kanan</button>
+            <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus kolom yang sedang dipilih?")) run(() => editor.chain().focus().deleteColumn().run()); }}><Trash2 size={13} /> Hapus kolom ini</button>
           </div>
           {sep}
           <div style={col}>
             <div style={groupLabel}>Warna sel</div>
             <div style={{ display: "flex", gap: 6, padding: "4px 10px 8px" }}>
               {CELL_SHADES.map((s) => (
-                <button key={s.v || "none"} title={s.label} onClick={() => run(() => editor.chain().focus().setCellAttribute("backgroundColor", s.v).run())}
+                <button key={s.v || "none"} title={s.label} onMouseDown={(e) => { e.preventDefault(); run(() => editor.chain().focus().setCellAttribute("backgroundColor", s.v).run()); }}
                   style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${s.v ? "transparent" : C.border}`, background: s.v || C.white, cursor: "pointer", position: "relative" }}>
                   {!s.v && <X size={12} color={C.sub} style={{ position: "absolute", top: 3, left: 3 }} />}
                 </button>
@@ -783,7 +777,7 @@ function TableCornerButton({ editor, wrapperEl }) {
           {sep}
           <div style={col}>
             <div style={groupLabel}>Tabel</div>
-            <button style={del} onClick={() => { if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) run(() => editor.chain().focus().deleteTable().run()); }}><Trash2 size={13} /> Hapus tabel</button>
+            <button style={del} onMouseDown={(e) => { e.preventDefault(); if (window.confirm("Hapus seluruh tabel ini? Semua isinya akan hilang.")) run(() => editor.chain().focus().deleteTable().run()); }}><Trash2 size={13} /> Hapus tabel</button>
           </div>
         </div>
       )}
@@ -810,6 +804,7 @@ function PageContentEditor({ node, onPreviewChange }) {
 
   useEffect(() => {
     let alive = true;
+    setReady(false);
     resolveKeyedImages(pageHtml(node)).then((html) => {
       if (!alive) return;
       resolvedHtml.current = html;
@@ -819,7 +814,7 @@ function PageContentEditor({ node, onPreviewChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav.notebook, nav.section, nav.path]);
 
-  return ready ? <PageContentEditorReady node={node} initialHtml={resolvedHtml.current} onPreviewChange={onPreviewChange} /> : (
+  return ready ? <PageContentEditorReady key={[nav.notebook, nav.section, ...nav.path].join("/")} node={node} initialHtml={resolvedHtml.current} onPreviewChange={onPreviewChange} /> : (
     <div style={{ padding: 40, textAlign: "center", color: C.sub, fontSize: 13 }}>Memuat editor…</div>
   );
 }
@@ -1068,6 +1063,7 @@ function QuizEditor({ node }) {
   const { nav, mut } = useApp();
   const [saved, setSaved] = useState(false);
   const qs = node.questions || [];
+  const pageKey = [nav.notebook, nav.section, ...nav.path].join("/");
   const set = (patch) => mut.setPageContent(nav.notebook, nav.section, nav.path, patch);
   const setQ = (i, patch) => set({ questions: qs.map((q, idx) => idx === i ? { ...q, ...patch } : q) });
   const addQ = () => set({ questions: [...qs, { q: "<p>Pertanyaan baru?</p>", options: ["Pilihan A", "Pilihan B"], answer: 0, reason: "" }] });
@@ -1088,7 +1084,7 @@ function QuizEditor({ node }) {
           </div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, marginBottom: 6 }}>Pertanyaan <span style={{ fontWeight: 500, textTransform: "none" }}>(bisa gambar, tabel, video, format teks)</span></div>
           <div style={{ marginBottom: 12 }}>
-            <MiniRichEditor key={`q-${i}`} html={q.q} onSave={(html) => setQ(i, { q: html })} placeholder="Tulis pertanyaan..." minHeight={60} />
+            <MiniRichEditor key={`${pageKey}-q-${i}`} html={q.q} onSave={(html) => setQ(i, { q: html })} placeholder="Tulis pertanyaan..." minHeight={60} />
           </div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, marginBottom: 6 }}>Pilihan (klik bulatan = jawaban benar)</div>
           {q.options.map((opt, oi) => (
@@ -1100,7 +1096,7 @@ function QuizEditor({ node }) {
           ))}
           <button onClick={() => setQ(i, { options: [...q.options, "Pilihan baru"] })} style={{ fontSize: 12.5, color: C.blue, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 10 }}>+ Tambah pilihan</button>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, margin: "4px 0 6px" }}>Alasan / pembahasan <span style={{ fontWeight: 500, textTransform: "none" }}>(opsional, bisa gambar/tabel/video)</span></div>
-          <MiniRichEditor key={`r-${i}`} html={q.reason} onSave={(html) => setQ(i, { reason: html })} placeholder="Kenapa jawaban ini benar..." minHeight={50} />
+          <MiniRichEditor key={`${pageKey}-r-${i}`} html={q.reason} onSave={(html) => setQ(i, { reason: html })} placeholder="Kenapa jawaban ini benar..." minHeight={50} />
         </div>
       ))}
       <button onClick={addQ} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 11, border: `1px dashed ${C.border}`, background: C.white, color: C.navy, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 16 }}><Plus size={16} color={C.blue} /> Tambah soal</button>
@@ -1198,7 +1194,7 @@ function PageView({ node, container, Row }) {
 }
 
 /* ===== breadcrumb ===== */
-function Crumb() {
+function Crumb({ light }) {
   const { data, nav, setNav } = useApp();
   const nb = nav.notebook ? data[nav.notebook] : null;
   const sec = nb && nav.section ? nb.sections[nav.section] : null;
@@ -1216,12 +1212,15 @@ function Crumb() {
       container = node.children || {};
     });
   }
+  const dim = light ? "rgba(255,255,255,0.72)" : C.sub;
+  const strong = light ? "#fff" : C.blue;
+  const chevronColor = light ? "rgba(255,255,255,0.6)" : C.sub;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: C.sub, marginBottom: 16, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: dim, marginBottom: 16, flexWrap: "wrap" }}>
       {items.map((it, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <ChevronRight size={12} color={C.sub} />}
-          <span onClick={it.go || undefined} style={{ cursor: it.go ? "pointer" : "default", color: i === items.length - 1 ? C.blue : C.sub, fontWeight: i === items.length - 1 ? 700 : 500 }}>{it.label}</span>
+          {i > 0 && <ChevronRight size={12} color={chevronColor} />}
+          <span onClick={it.go || undefined} style={{ cursor: it.go ? "pointer" : "default", color: i === items.length - 1 ? strong : dim, fontWeight: i === items.length - 1 ? 700 : 500 }}>{it.label}</span>
         </React.Fragment>
       ))}
     </div>
@@ -1701,13 +1700,13 @@ function DesktopShell() {
 
           <div style={{ padding: "18px 40px 0" }}>
             {nav.view === "anggota" ? (
-              <><h1 style={h1Style()}>Anggota</h1><p style={pStyle()}>Verifikasi pembayaran dan kelola akses pelajar.</p><MembersView /></>
+              <><h1 style={{ ...h1Style(), color: "#fff" }}>Anggota</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>Verifikasi pembayaran dan kelola akses pelajar.</p><MembersView /></>
             ) : (
               <>
-                <Crumb />
-                {!nb && <><h1 style={h1Style()}>Materi belajar</h1><p style={pStyle()}>Materi kedokteran tersusun per bidang studi.</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><NotebookRows Row={DeskRow} /></div></>}
-                {nb && !sec && <><h1 style={h1Style()}>{nb.title}</h1><p style={pStyle()}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
-                {sec && !node && <><h1 style={h1Style()}>{sec.title}</h1><p style={pStyle()}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
+                <Crumb light />
+                {!nb && <><h1 style={{ ...h1Style(), color: "#fff" }}>Materi belajar</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>Materi kedokteran tersusun per bidang studi.</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><NotebookRows Row={DeskRow} /></div></>}
+                {nb && !sec && <><h1 style={{ ...h1Style(), color: "#fff" }}>{nb.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>{L.section} dalam {L.book.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><SectionRows nb={nb} Row={DeskRow} /></div></>}
+                {sec && !node && <><h1 style={{ ...h1Style(), color: "#fff" }}>{sec.title}</h1><p style={{ ...pStyle(), color: "rgba(255,255,255,0.72)" }}>{L.page} dalam {L.section.toLowerCase()} ini</p><div style={{ display: "flex", flexDirection: "column", gap: 10 }}><PageRows container={container} basePath={[]} Row={DeskRow} /></div></>}
                 {sec && node && (
                   <div style={{ maxWidth: 820, margin: "0 auto 40px", background: C.cardBg, borderRadius: 20, padding: "34px 44px 44px", boxShadow: theme === "dark" ? "0 8px 32px rgba(0,0,0,0.35)" : "0 8px 32px rgba(12,60,120,0.14)", border: `1px solid ${theme === "dark" ? C.border : "transparent"}` }}>
                     {role !== "pengajar" && <h1 style={{ ...h1Style(), fontSize: 25 }}>{node.title}</h1>}
